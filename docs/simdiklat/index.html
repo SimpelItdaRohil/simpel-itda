@@ -4,9 +4,12 @@
 <script src="../config.js"></script>
 <script>
 /* ===== SIMPEL-ITDA: penyesuai modul untuk GitHub Pages (dibuat oleh rakit_modul.py) ===== */
-window.__PORTAL = { modul: "simdiklat", url: '../', web: true };
+window.__PORTAL = { modul: "simdiklat", url: "../", web: true };
 window.google = window.google || {};
 if (!google.script) google.script = { web: true };        /* agar pemeriksaan bawaan modul lolos */
+google.script.url = google.script.url || { getLocation: function (cb) {
+  var p = {}, q = {}; new URLSearchParams(location.search).forEach(function (v, k) { p[k] = v; (q[k] = q[k] || []).push(v); });
+  cb({ parameter: p, parameters: q, hash: location.hash.replace(/^#/, '') }); } };
 (function () {
   var MOD = "simdiklat";
   function panggil(fn, args) {
@@ -22,6 +25,68 @@ if (!google.script) google.script = { web: true };        /* agar pemeriksaan ba
       });
   }
   window.__simpelPanggil = panggil;
+  /* ---------- Muat cepat: data baca terakhir disimpan di browser ----------
+     Fungsi "baca" langsung dijawab dari simpanan (instan), lalu diperbarui diam-diam dari server.
+     Fungsi lain (simpan/hapus/login/logout) selalu ke server dan mengosongkan simpanan modul ini. */
+  var BACA = ["apiMuat", "apiLog"], AWAL = '__sc:' + MOD + ':', UMUR = 3 * 864e5;
+  var SESI = /SESI_HABIS|AUTH_REQUIRED|SESSION_EXPIRED|GANTI_PASSWORD|MUST_CHANGE/;
+  function tokenSaya() {
+    var t = [];
+    [localStorage, sessionStorage].forEach(function (st) { try { for (var i = 0; i < st.length; i++) { var k = st.key(i); if (/tok/i.test(k) && k.indexOf('__sc:') !== 0) { var v = st.getItem(k); if (v && v.length >= 16) t.push(v); } } } catch (e) {} });
+    return t;
+  }
+  function kunci(fn, a) {
+    var t = tokenSaya(), x = JSON.stringify(a.map(function (v) { return t.indexOf(v) >= 0 ? '~' : v; })), h = 0;
+    for (var i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) | 0;
+    return AWAL + fn + ':' + h;
+  }
+  function bersih(semua) {
+    try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf(semua ? '__sc:' : AWAL) === 0) localStorage.removeItem(k); } } catch (e) {}
+  }
+  function ambil(k) {
+    try { var v = JSON.parse(localStorage.getItem(k) || 'null'); if (v && Date.now() - v.t < UMUR) return v; } catch (e) {}
+    return null;
+  }
+  function simpan(k, d) {
+    var s = JSON.stringify({ t: Date.now(), d: d });
+    if (s.length > 2500000) return;
+    try { localStorage.setItem(k, s); } catch (e) { bersih(true); try { localStorage.setItem(k, s); } catch (x) {} }
+  }
+  function sama(a, b) {
+    var r = function (k, v) { return /waktu|time|jam|now|dihitung|update|stamp/i.test(k) ? undefined : v; };
+    return JSON.stringify(a, r) === JSON.stringify(b, r);
+  }
+  function kabar() {
+    if (document.getElementById('__ptBaru')) return;
+    var d = document.createElement('div'); d.id = '__ptBaru';
+    d.innerHTML = 'Ada data terbaru. <button type="button">Muat ulang</button><b>×</b>';
+    d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483002;background:#0f172a;color:#fff;font:500 13px/1.3 system-ui,Arial;padding:9px 10px 9px 14px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center';
+    d.querySelector('button').style.cssText = 'border:0;border-radius:999px;padding:6px 12px;font:600 12px system-ui;background:#fbbf24;color:#111;cursor:pointer';
+    d.querySelector('button').onclick = function () { location.reload(); };
+    d.querySelector('b').style.cssText = 'cursor:pointer;padding:0 6px;opacity:.7';
+    d.querySelector('b').onclick = function () { d.remove(); };
+    (document.body || document.documentElement).appendChild(d);
+  }
+  function jalan(fn, a) {
+    var lewat = function () { return panggil('modulPanggil', [MOD, fn, a]); };
+    if (BACA.indexOf(fn) < 0) {
+      return lewat().then(function (r) { bersih(); return r; }, function (e) { bersih(); throw e; });
+    }
+    var k = kunci(fn, a), c = ambil(k);
+    var baru = lewat().then(function (r) {
+      if (c && (r == null || r === false || (r && r.ok === false))) { bersih(); location.reload(); return r; }
+      simpan(k, r);
+      if (c && !sama(c.d, r)) kabar();
+      return r;
+    }, function (e) {
+      if (c && SESI.test(String(e && e.message))) { bersih(); location.reload(); }
+      throw e;
+    });
+    if (!c) return baru;
+    baru.catch(function () {});
+    return Promise.resolve(c.d);
+  }
+  window.__simpelBersihCache = bersih;
   function mk(s, f, u) {
     return new Proxy({}, { get: function (_, k) {
       if (k === 'withSuccessHandler') return function (h) { return mk(h, f, u); };
@@ -30,7 +95,7 @@ if (!google.script) google.script = { web: true };        /* agar pemeriksaan ba
       if (typeof k !== 'string' || k === 'then') return undefined;
       return function () {
         var a = Array.prototype.slice.call(arguments);
-        panggil('modulPanggil', [MOD, k, a]).then(function (r) { if (s) s(r, u); },
+        jalan(k, a).then(function (r) { if (s) s(r, u); },
           function (e) { if (f) f(e, u); else console.error(e); });
       };
     } });
@@ -45,6 +110,8 @@ if (!google.script) google.script = { web: true };        /* agar pemeriksaan ba
       try {
         (r.hapus || []).forEach(function (x) { (x[0] === 'local' ? localStorage : sessionStorage).removeItem(x[1]); });
         (r.set || []).forEach(function (x) { (x[0] === 'local' ? localStorage : sessionStorage).setItem(x[1], x[2]); });
+        /* data simpanan hanya dipakai lagi bila pemiliknya akun yang sama */
+        if (r.ok) { if (!r.pemilik || localStorage.getItem('__scPemilik') !== r.pemilik) bersih(true); if (r.pemilik) localStorage.setItem('__scPemilik', r.pemilik); }
       } catch (e) {}
       if (!r.ok) sessionStorage.setItem('__ptPesan', r.pesan || 'Masuk otomatis gagal, silakan login di modul ini.');
     }, function (e) { sessionStorage.setItem('__ptPesan', e.message); })
