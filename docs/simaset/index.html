@@ -695,9 +695,20 @@ a{color:var(--em-700)}
         <a class="nav" data-go="rekap_ar"><span class="ms">summarize</span>Rekap Arsip Digital</a>
         <a class="nav" data-go="kk_STNK"><span class="ms">badge</span>Arsip STNK</a>
         <a class="nav" data-go="kk_REKON"><span class="ms">fact_check</span>Hasil Rekonsiliasi (PDF)</a>
+        <a class="nav" data-go="kk_KIB_PDF"><span class="ms">inventory_2</span>Arsip PDF KIB</a>
         <a class="nav" data-go="kk_SURAT_MASUK"><span class="ms">move_to_inbox</span>Surat Masuk Aset</a>
         <a class="nav" data-go="kk_SK_PENGURUS"><span class="ms">workspace_premium</span>SK Pengurus Barang</a>
         <a class="nav" data-go="kk_PERATURAN"><span class="ms">gavel</span>Peraturan terkait Aset</a>
+        <a class="nav" data-go="kk_A_KEMBALI"><span class="ms">assignment_return</span>BAST Pengembalian BMD</a>
+        <a class="nav" data-go="kk_A_SERAH"><span class="ms">handshake</span>BA Serah Terima BMD</a>
+        <a class="nav" data-go="kk_A_KWITANSI"><span class="ms">receipt_long</span>Kwitansi Pajak</a>
+        <a class="nav" data-go="kk_A_KUASA"><span class="ms">contract</span>Surat Kuasa & Ket. Pajak</a>
+        <a class="nav" data-go="kk_A_PENGANTAR"><span class="ms">forward_to_inbox</span>Surat Pengantar</a>
+        <a class="nav" data-go="kk_A_PENUNJUKAN"><span class="ms">assignment_ind</span>Surat Penunjukan & Pernyataan</a>
+        <a class="nav" data-go="kk_A_TT_STNK"><span class="ms">badge</span>Tanda Terima STNK Asli</a>
+        <a class="nav" data-go="kk_A_PINJAM"><span class="ms">swap_horiz</span>BA Peminjaman Barang</a>
+        <a class="nav" data-go="kk_A_PENERTIBAN"><span class="ms">rule</span>Surat Penertiban Aset</a>
+        <a class="nav" data-go="kk_A_UMUM"><span class="ms">folder_open</span>Dokumen Umum</a>
       </div></div>
     </div>
 
@@ -1957,7 +1968,7 @@ LAP.r_rekon_all = function(p){
 };
 LAP.ttd3 = function(){
   function c(i,n,j){ return '<tr><td style="width:18px">'+i+'.</td><td><b style="white-space:nowrap">'+esc(n||'………………………')+'</b><br><span class="small">'+j+'</span></td><td style="width:120px">(………………………)</td></tr>'; }
-  return '<div class="ttd" style="font-size:11pt"><div style="text-align:left"><div class="b c">'+esc(setting('NAMA_OPD'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,kepala().nama,kepala().jab+' KAB. '+esc(String(setting('KABUPATEN')).toUpperCase()))+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBAG_NAMA'),'KASUBBAG. KEUANGAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('PENGURUS_NAMA'),'PENGURUS BARANG PENGGUNA')+'</table></div>'+
+  return '<div class="ttd" style="font-size:11pt"><div style="text-align:left"><div class="b c">'+esc(setting('NAMA_OPD'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,kepala().nama,kepala().jab+' KAB. '+esc(String(setting('KABUPATEN')).toUpperCase()))+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBAG_NAMA'),'KASUBBAG ADMINISTRASI UMUM DAN KEUANGAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('PENGURUS_NAMA'),'PENGURUS BARANG PENGGUNA')+'</table></div>'+
     '<div style="text-align:left"><div class="b c">BIDANG PENGELOLAAN ASET DAERAH BPKAD KAB. '+esc(setting('KABUPATEN'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,setting('KABID_ASET_NAMA'),'KEPALA BIDANG PENGELOLAAN ASET')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBID_ASET_NAMA'),'KASUBBID PERENCANAAN DAN PENATAUSAHAAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('AKUNTANSI_NAMA'),'TENAGA AKUNTANSI')+'</table></div></div>';
 };
 
@@ -2348,9 +2359,71 @@ var KK_DEF = {
     cols:[{k:'d',l:'Jenis',f:function(r){return '<span class="badge info">'+esc(dv(r,'JenisPeraturan')||'')+'</span>';}},{k:'Nomor',l:'Nomor / Tahun',f:function(r){return '<b>No. '+esc(r.Nomor)+' Th. '+esc(r.Tahun)+'</b>';}},{k:'Uraian',l:'Tentang',w:320},{k:'Status',l:'Status',f:function(r){return '<span class="badge '+(r.Status==='Dicabut'?'bad':r.Status==='Berlaku'?'ok':'warn')+'">'+esc(r.Status)+'</span>';}}],
     pr:[['Jenis',function(r){return dv(r,'JenisPeraturan');}],['Nomor',function(r){return r.Nomor;}],['Tahun',function(r){return r.Tahun;}],['Tentang',function(r){return r.Uraian;}],['Status',function(r){return r.Status;}],['Pokok Pengaturan',function(r){return dv(r,'Pokok');}]],
     tombolExtra:'<button class="btn" id="btnSeedPer"><span class="ms">playlist_add</span>Isi daftar peraturan pokok BMD</button>'
+  },
+  KIB_PDF: {
+    kode:'AR-06', grp:'ar', ic:'inventory_2', nav:'Arsip PDF KIB',
+    judul:'Arsip PDF Kartu Inventaris Barang (KIB)',
+    dasar:'Arsip KIB A–F dan Ekstrakomptabel yang telah dicetak dan ditandatangani per bulan, triwulan, semester dan tahun — bukti posisi aset pada setiap akhir periode. Gunakan "Baca Otomatis (PDF)" agar isian terisi dari dokumen.',
+    src:[],
+    fields:[{k:'d_JenisKIB',l:'Jenis KIB',t:'select',req:true,full:true,opt:['KIB A — Tanah','KIB B — Peralatan dan Mesin','KIB C — Gedung dan Bangunan','KIB D — Jalan, Irigasi dan Jaringan','KIB E — Aset Tetap Lainnya','KIB F — Konstruksi Dalam Pengerjaan','Ekstrakomptabel','Seluruh KIB (A–F + Ekstrakomptabel)']},
+      {k:'d_Periode',l:'Periode',t:'select',req:true,opt:TW.concat(BULAN.map(function(b){return 'Bulan '+b;}))},{k:'Tahun',l:'Tahun',def:String(new Date().getFullYear()),req:true},{k:'Tanggal',l:'Tanggal TTD / cetak',t:'date',req:true,def:today()},
+      {k:'d_JumlahItem',l:'Jumlah item barang'},{k:'Nilai',l:'Total nilai (Rp)',t:'number'},
+      {k:'Status',l:'Status dokumen',t:'select',opt:['Sudah ditandatangani','Belum ditandatangani'],def:'Sudah ditandatangani'},{k:'Keterangan',l:'Keterangan',t:'textarea'}],
+    slots:[{slot:'PDF',l:'PDF KIB bertanda tangan',req:true},{slot:'LAMPIRAN',l:'Lampiran (rekap / foto)',multi:true}],
+    cols:[{k:'Tanggal',l:'Tanggal',f:function(r){return tglPendek(r.Tanggal);}},{k:'d',l:'Jenis KIB / Periode',w:240,f:function(r){return '<b>'+esc(dv(r,'JenisKIB')||'')+'</b><span class="t2">'+esc(dv(r,'Periode')||'')+' '+esc(r.Tahun||'')+'</span>';}},{k:'d2',l:'Jumlah Item',r:1,f:function(r){return esc(dv(r,'JumlahItem')||'-');}},{k:'Nilai',l:'Total Nilai',r:1,f:function(r){return rp(r.Nilai,true);}},{k:'Status',l:'Status',f:function(r){return '<span class="badge '+(/Sudah/.test(r.Status)?'ok':'warn')+'">'+esc(r.Status||'')+'</span>';}}],
+    pr:[['Jenis KIB',function(r){return dv(r,'JenisKIB');}],['Periode',function(r){return dv(r,'Periode')+' '+r.Tahun;}],['Tanggal',function(r){return tglPendek(r.Tanggal);}],['Jumlah Item',function(r){return dv(r,'JumlahItem');}],['Total Nilai (Rp)',function(r){return {n:num(r.Nilai)};}],['Status',function(r){return r.Status;}]],
+    simpanHook:function(rec){ rec.Uraian=(rec.Data.JenisKIB||'KIB')+' — '+(rec.Data.Periode||'')+' '+(rec.Tahun||''); }
   }
 };
 /* RKBMD juga punya slot arsip (dokumen RKBMD bertanda tangan) */
+/* ------------------------------------------------------------------
+   ARSIP DIGITAL DOKUMEN BERTANDA TANGAN (AR-07 s.d. AR-16)  — revisi 28 Nov 2026
+   Arsip PDF dokumen yang sudah ditandatangani (hasil cetak menu Surat & Dokumen / Kertas Kerja)
+   + Arsip Dokumen Umum. Semua mendukung "Baca Otomatis (PDF)".
+   ------------------------------------------------------------------ */
+(function(){
+  var TTD=['Sudah ditandatangani','Belum ditandatangani'];
+  var JENIS_UMUM=['Berita Acara','Surat Keputusan','Surat Tugas','Surat Edaran','Nota Dinas','Surat Undangan','Surat Biasa','Laporan','Kwitansi / Bukti Bayar','Daftar / Rekap','Notulen','Lainnya'];
+  function f(k,l,o){ return Object.assign({k:k,l:l},o||{}); }
+  function buat(key, kode, ic, nav, judul, dasar, x){
+    x=x||{};
+    var fields=[f('Nomor', x.lNomor||'Nomor dokumen'), f('Tanggal','Tanggal dokumen',{t:'date',req:true,def:today()})];
+    if(x.umum) fields.unshift(f('d_JenisDok','Jenis dokumen',{t:'select',req:true,opt:JENIS_UMUM}));
+    fields.push(f('Uraian', x.lUraian||'Perihal / uraian',{req:true,full:true,def:x.defUraian||''}));
+    fields.push(f('Pihak', x.lPihak||'Nama pegawai / pihak terkait',{src:x.tujuan?'':'pegawai',t:x.tujuan?'datalist':undefined,opt:x.tujuan?['Bupati Rokan Hilir','Sekretaris Daerah Kabupaten Rokan Hilir','Kepala BPKAD Kabupaten Rokan Hilir','Kepala Bidang Pengelolaan Aset Daerah BPKAD','Kepala UPT Samsat Bagansiapiapi']:undefined}));
+    if(!x.tujuan) fields.push(f('NIP','NIP'));
+    if(x.barang) fields.push(f('d_Barang','Barang (nama / merk / type)',{full:true}));
+    if(x.nopol) fields.push(f('NoPolisi','No. Polisi'));
+    if(x.stnk) fields.push(f('d_NoSTNK','Nomor STNK'));
+    if(x.kuasa) fields.push(f('d_PenerimaKuasa','Penerima kuasa'));
+    if(x.nilai) fields.push(f('Nilai','Jumlah dibayar (Rp)',{t:'number'}));
+    fields.push(f('Status','Status dokumen',{t:'select',opt:TTD,def:TTD[0]}), f('Keterangan','Keterangan',{t:'textarea'}));
+    var cols=[{k:'Tanggal',l:'Tanggal',f:function(r){return tglPendek(r.Tanggal);}},
+      {k:'Nomor',l:x.umum?'Jenis / Nomor / Perihal':'Nomor / Perihal',w:260,f:function(r){return (x.umum?'<span class="badge info">'+esc(dv(r,'JenisDok')||'')+'</span> ':'')+'<b>'+esc(r.Nomor||'-')+'</b><span class="t2">'+esc(r.Uraian||'')+'</span>';}},
+      {k:'Pihak',l:x.lPihak||'Pihak',w:170,f:function(r){return esc(r.Pihak||'')+(r.NIP?'<span class="t2">'+esc(nipFmt(r.NIP))+'</span>':'');}}];
+    if(x.nopol) cols.push({k:'NoPolisi',l:'No. Polisi'});
+    if(x.nilai) cols.push({k:'Nilai',l:'Jumlah',r:1,f:function(r){return rp(r.Nilai,true);}});
+    cols.push({k:'Status',l:'Status',f:function(r){return '<span class="badge '+(/Sudah/.test(r.Status)?'ok':'warn')+'">'+esc(r.Status||'')+'</span>';}});
+    var pr=[['Tanggal',function(r){return tglPendek(r.Tanggal);}],['Nomor',function(r){return r.Nomor;}],['Perihal / Uraian',function(r){return r.Uraian;}],['Pihak',function(r){return (r.Pihak||'')+(r.NIP?'\n'+nipFmt(r.NIP):'');}]];
+    if(x.umum) pr.unshift(['Jenis',function(r){return dv(r,'JenisDok');}]);
+    if(x.nopol) pr.push(['No. Polisi',function(r){return r.NoPolisi;}]);
+    if(x.nilai) pr.push(['Jumlah (Rp)',function(r){return {n:num(r.Nilai)};}]);
+    pr.push(['Status',function(r){return r.Status;}]);
+    KK_DEF[key]={ kode:kode, grp:'ar', ic:ic, nav:nav, judul:judul, dasar:dasar+' Gunakan "Baca Otomatis (PDF)" agar isian terisi dari dokumen.', src:[], fields:fields,
+      slots:[{slot:'PDF',l:'PDF dokumen bertanda tangan',req:true},{slot:'LAMPIRAN',l:'Lampiran',multi:true}], cols:cols, pr:pr };
+  }
+  buat('A_KEMBALI','AR-07','assignment_return','BAST Pengembalian BMD','Arsip Berita Acara Serah Terima (Pengembalian) BMD','Arsip BA serah terima pengembalian barang milik daerah dari pegawai/pemakai kepada kantor yang telah ditandatangani.',{barang:1,nopol:1,defUraian:'Berita Acara Serah Terima (Pengembalian) Barang Milik Daerah',lPihak:'Pegawai yang mengembalikan'});
+  buat('A_SERAH','AR-08','handshake','BA Serah Terima BMD','Arsip Berita Acara Serah Terima BMD','Arsip BA serah terima barang milik daerah kepada pegawai/pemakai yang telah ditandatangani.',{barang:1,nopol:1,defUraian:'Berita Acara Serah Terima Barang Milik Daerah',lPihak:'Pegawai penerima'});
+  buat('A_KWITANSI','AR-09','receipt_long','Kwitansi Pajak','Arsip Kwitansi Pembayaran Pajak Kendaraan','Arsip kwitansi / bukti pembayaran PKB & SWDKLLJ kendaraan dinas.',{nopol:1,nilai:1,defUraian:'Pembayaran Pajak Kendaraan Dinas',lPihak:'Pemakai / penerima'});
+  buat('A_KUASA','AR-10','contract','Surat Kuasa & Ket. Pajak','Arsip Surat Kuasa dan Surat Keterangan Pajak','Arsip surat kuasa pengurusan pajak/STNK dan surat keterangan pajak kendaraan dinas.',{nopol:1,kuasa:1,defUraian:'Surat Kuasa dan Surat Keterangan Pengurusan Pajak Kendaraan',lPihak:'Pemberi kuasa'});
+  buat('A_PENGANTAR','AR-11','forward_to_inbox','Surat Pengantar','Arsip Surat Pengantar','Arsip surat pengantar terkait pengelolaan BMD yang telah ditandatangani.',{tujuan:1,lPihak:'Kepada / tujuan'});
+  buat('A_PENUNJUKAN','AR-12','assignment_ind','Surat Penunjukan & Pernyataan','Arsip Surat Penunjukan Penggunaan BMD dan Surat Pernyataan','Arsip surat penunjukan penggunaan BMD beserta surat pernyataan pemakai yang telah ditandatangani.',{barang:1,nopol:1,defUraian:'Surat Penunjukan Penggunaan Barang Milik Daerah dan Surat Pernyataan',lPihak:'Pegawai yang ditunjuk'});
+  buat('A_TT_STNK','AR-13','badge','Tanda Terima STNK Asli','Arsip Tanda Terima Penyerahan STNK Asli','Arsip tanda terima penyerahan STNK asli kendaraan dinas antara pengurus barang dan pemakai.',{nopol:1,stnk:1,defUraian:'Tanda Terima Penyerahan STNK Asli',lPihak:'Penerima / penyerah'});
+  buat('A_PINJAM','AR-14','swap_horiz','BA Peminjaman Barang','Arsip Berita Acara Peminjaman Barang','Arsip BA peminjaman barang milik daerah yang telah ditandatangani.',{barang:1,nopol:1,defUraian:'Berita Acara Peminjaman Barang Milik Daerah',lPihak:'Peminjam'});
+  buat('A_PENERTIBAN','AR-15','rule','Surat Penertiban Aset','Arsip Surat Penertiban Aset','Arsip surat penertiban / penarikan aset dan tindak lanjutnya yang telah ditandatangani.',{tujuan:1,nopol:1,lPihak:'Ditujukan kepada'});
+  buat('A_UMUM','AR-16','folder_open','Dokumen Umum','Arsip Dokumen Umum','Arsip dokumen lain yang tidak termasuk kategori di atas (BA, SK, nota dinas, undangan, laporan, dll).',{umum:1});
+})();
+
 KK_DEF.RKBMD = { kode:'KK-06', grp:'kk', ic:'event_list', nav:'RKBMD', judul:'Kertas Kerja Rencana Kebutuhan Barang Milik Daerah (RKBMD)',
   fields:[{k:'Tahun',l:'Tahun RKBMD',req:true,def:String(new Date().getFullYear()+1)},{k:'d_JenisRKBMD',l:'Dokumen',t:'select',req:true,opt:['RKBMD Pengadaan','RKBMD Pemeliharaan','RKBMD Pemanfaatan','RKBMD Penghapusan','RKBMD Pemindahtanganan','Rencana Kebutuhan Barang Habis Pakai','Hasil Penelaahan RKBMD','Lainnya']},{k:'Tanggal',l:'Tanggal',t:'date',def:today()},{k:'Nomor',l:'Nomor surat pengantar / BA'},{k:'Uraian',l:'Uraian',full:true},{k:'Status',l:'Status',t:'select',opt:['Disampaikan ke Pengelola','Sudah ditelaah','Draft'],def:'Disampaikan ke Pengelola'},{k:'Keterangan',l:'Keterangan',t:'textarea'}],
   slots:[{slot:'DOK',l:'Dokumen RKBMD bertanda tangan',req:true},{slot:'LAMPIRAN',l:'Lampiran',multi:true}],
@@ -4909,15 +4982,15 @@ function simpanSemua(){
 </script>
 <script>
 /* =====================================================================
-   JsArsipAuto — Arsip Digital AR-02 s.d. AR-05: "Baca Otomatis (PDF)"   (revisi 28 Nov 2026)
+   JsArsipAuto — Arsip Digital AR-02 s.d. AR-16: "Baca Otomatis (PDF)"   (revisi 28 Nov 2026)
    PDF / foto dokumen → OCR (server, Google Drive) → form Tambah & Unggah terisi otomatis
    + berkas langsung terpasang di slot utama → periksa → Simpan.
    Tombol disisipkan otomatis di samping "Tambah & Unggah" (tidak mengubah JsArsip).
    ===================================================================== */
 (function(){
-var JENIS = { REKON:'BA Rekonsiliasi', SURAT_MASUK:'surat masuk', SK_PENGURUS:'SK Pengurus Barang', PERATURAN:'peraturan' };
+var JENIS = { REKON:'BA Rekonsiliasi', SURAT_MASUK:'surat masuk', SK_PENGURUS:'SK Pengurus Barang', PERATURAN:'peraturan', KIB_PDF:'KIB' };
 
-function kunciHalaman(){ var p=String(S.page||''); return p.indexOf('kk_')===0 && JENIS[p.slice(3)] ? p.slice(3) : ''; }
+function kunciHalaman(){ var p=String(S.page||''), k=p.slice(3); return p.indexOf('kk_')===0 && (JENIS[k] || (k.indexOf('A_')===0 && KK_DEF[k])) ? k : ''; }
 
 function sisip(){
   var key=kunciHalaman(), add=document.getElementById('kkAdd');
@@ -4926,7 +4999,7 @@ function sisip(){
   b.id='btnArsAuto'; b.type='button'; b.className='btn';
   b.style.cssText='background:#fff;border:1.5px solid var(--em-700,#0f6b4f);color:var(--em-700,#0f6b4f);font-weight:700';
   b.innerHTML='<span class="ms">document_scanner</span>Baca Otomatis (PDF)';
-  b.title='Pilih PDF/foto '+JENIS[key]+' — isian terisi otomatis, berkas langsung terlampir';
+  b.title='Pilih PDF/foto '+(JENIS[key]||KK_DEF[key].nav)+' — isian terisi otomatis, berkas langsung terlampir';
   b.onclick=function(){ pilih(key); };
   add.parentNode.insertBefore(b, add);
 }
