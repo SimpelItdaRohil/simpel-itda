@@ -1626,7 +1626,7 @@ LAP.tampil = function(judul, bodyHtml, o){
     return out+NL+'--'+B+'--'+NL;
   }
   var wrap=document.createElement('div');
-  wrap.innerHTML='<div class="toolbar" style="margin-bottom:12px"><select class="sel" data-pp><option>F4</option><option>A4</option><option>Legal</option></select><select class="sel" data-or><option value="portrait">Tegak</option><option value="landscape">Mendatar</option>'+(jmlHal>1?'<option value="campur">Hal. 1 Tegak, berikutnya Mendatar</option>':'')+'</select><select class="sel" data-kop title="Kop surat"><option value="insp">Kop Inspektorat</option><option value="bupati">Kop Bupati + Provinsi Riau</option><option value="bupati2">Kop Bupati tanpa Provinsi Riau</option><option value="tanpa">Tanpa kop</option></select><div class="sp"></div>'+
+  wrap.innerHTML='<div class="toolbar" style="margin-bottom:12px"><select class="sel" data-pp><option>F4</option><option>A4</option><option>Legal</option></select><select class="sel" data-or><option value="portrait">Tegak</option><option value="landscape">Mendatar</option>'+(jmlHal>1?'<option value="campur">Hal. 1 Tegak, berikutnya Mendatar</option>':'')+'</select><select class="sel" data-kop title="Kop surat"><option value="insp">Kop Inspektorat</option><option value="bupati">Kop Bupati + Provinsi Riau</option><option value="bupati2">Kop Bupati tanpa Provinsi Riau</option><option value="tanpa">Tanpa kop</option></select><select class="sel" data-ver title="Arsip versi laporan periode ini (tersimpan otomatis)" style="display:none;max-width:300px"></select><div class="sp"></div>'+
     (o.arsip?'<button class="btn" data-ars><span class="ms">inventory</span>'+esc(o.arsip.label||'Catat ke Arsip')+'</button>':'')+(o.data2d?'<button class="btn" data-xs><span class="ms">table_view</span>Ekspor Sheets</button>':'')+'<button class="btn" data-edit title="Koreksi teks/angka langsung di pratinjau"><span class="ms">edit_note</span>Edit Isi</button><button class="btn" data-master title="Simpan hasil koreksi sebagai master laporan ini"><span class="ms">bookmark_add</span>Simpan Master</button><button class="btn" data-doc><span class="ms">description</span>Unduh Word</button><button class="btn" data-pdf><span class="ms">picture_as_pdf</span>Simpan PDF ke Drive</button><button class="btn" data-tab><span class="ms">open_in_new</span>Tab baru</button><button class="btn gold" data-pr><span class="ms">print</span>Cetak</button></div><div data-info style="display:none;margin:-4px 0 10px;padding:8px 12px;border-radius:10px;background:var(--gold-50,#fdf6e8);border:1px solid var(--gold-100,#fbebd0);font-size:13px;line-height:1.6"></div><iframe class="prev-frame"></iframe>';
   var fr=$('iframe',wrap); $('[data-pp]',wrap).value=paper; $('[data-or]',wrap).value=orient;
   function draw(){ fr.srcdoc=full(); }
@@ -1635,6 +1635,22 @@ LAP.tampil = function(judul, bodyHtml, o){
      Master   : hasil koreksi disimpan di Drive (folder "SIMAset - Master Laporan") per judul laporan
                 dan otomatis dibuka kembali saat laporan yang sama dibuat lagi. */
   var asli=bodyHtml, modeEdit=false, belumSimpan=false, master=null, pakaiMaster=false, kunci=o.master||judul;
+  /* Arsip versi (revisi 28 Nov 2026): setiap laporan periode (bulan/triwulan/semester/tahun) disimpan otomatis
+     bila isinya berubah, sehingga data periode lalu tetap bisa dilihat seperti saat dibuat. */
+  var periodik=!!(o.periodik||(LAP._periode&&Date.now()-LAP._periode<900000)), lihatVersi=null; LAP._periode=0;
+  var sv=$('[data-ver]',wrap);
+  function simpanBentuk(h){ h=String(h).split(LAP.kop()).join('<!--KOP-->'); var L=window.LOGO||{}; Object.keys(L).forEach(function(k){ if(L[k]&&String(L[k]).length>200) h=h.split(L[k]).join('{{LOGO:'+k+'}}'); }); return h; }
+  function pulihkan(h){ h=String(h||''); var L=window.LOGO||{}; Object.keys(L).forEach(function(k){ if(L[k]) h=h.split('{{LOGO:'+k+'}}').join(L[k]); }); return h.split('<!--KOP-->').join(LAP.kop()); }
+  function isiVersi(daftar){
+    daftar=daftar||[]; if(!daftar.length){ sv.style.display='none'; return; }
+    sv.innerHTML='<option value="">Data terbaru (register)</option>'+daftar.slice().reverse().map(function(v){ return '<option value="'+esc(v.id)+'">'+esc(v.waktu)+' · '+(v.jenis==='master'?'koreksi/master':'data')+(v.oleh?' · '+esc(v.oleh):'')+'</option>'; }).join('');
+    sv.value=lihatVersi?lihatVersi.id:''; sv.style.display='';
+  }
+  sv.onchange=function(){
+    var id=this.value;
+    if(!id){ lihatVersi=null; pakaiMaster=false; bodyHtml=asli; belumSimpan=false; draw(); tulisInfo(); return; }
+    api('riwayatAmbil',kunci,id).then(function(v){ if(!v) return toast('Versi tidak ditemukan',true); lihatVersi=v; pakaiMaster=false; belumSimpan=false; bodyHtml=pulihkan(v.html); draw(); tulisInfo(); }).catch(gagal);
+  };
   var info=$('[data-info]',wrap), bE=$('[data-edit]',wrap), bM=$('[data-master]',wrap);
   function semua(el,sel){ return Array.prototype.slice.call(el.querySelectorAll(sel)); }
   function rapikan(doc){ // isi hasil edit → bodyHtml (kop kembali jadi kop Inspektorat agar pilihan kop tetap berlaku)
@@ -1653,7 +1669,7 @@ LAP.tampil = function(judul, bodyHtml, o){
   }
   fr.addEventListener('load',pasangEdit);
   function terapkanMaster(m){
-    bodyHtml=String(m.html||'').split('<!--KOP-->').join(LAP.kop());
+    bodyHtml=pulihkan(m.html); lihatVersi=null; if(sv) sv.value='';
     var op=m.opsi||{};
     if(op.paper){ paper=op.paper; $('[data-pp]',wrap).value=paper; }
     if(op.orient&&(op.orient!=='campur'||jmlHal>1)){ orient=op.orient; $('[data-or]',wrap).value=orient; }
@@ -1662,18 +1678,19 @@ LAP.tampil = function(judul, bodyHtml, o){
   }
   function tulisInfo(){
     var t=[];
+    if(lihatVersi) t.push('<span class="ms" style="font-size:16px;vertical-align:-3px">history</span> Menampilkan <b>ARSIP</b> versi '+esc(lihatVersi.waktu||'')+(lihatVersi.oleh?' ('+esc(lihatVersi.oleh)+')':'')+' — data seperti saat itu. Pilih <b>Data terbaru</b> pada daftar versi untuk melihat data register sekarang.');
     if(modeEdit) t.push('<b>Mode edit:</b> klik teks atau angka di pratinjau untuk mengoreksi (Ctrl+Z = batal ketik). Kop tidak ikut diedit. Setelah selesai klik <b>Simpan Master</b>.');
-    if(pakaiMaster&&master) t.push('<span class="ms" style="font-size:16px;vertical-align:-3px">bookmark</span> Menampilkan <b>MASTER</b> yang disimpan '+esc(master.waktu||'')+(master.oleh?' oleh '+esc(master.oleh):'')+'. <a href="#" data-baru>Pakai data terbaru dari register</a> · <a href="#" data-hapus>Hapus master</a>');
+    if(lihatVersi){} else if(pakaiMaster&&master) t.push('<span class="ms" style="font-size:16px;vertical-align:-3px">bookmark</span> Menampilkan <b>MASTER</b> yang disimpan '+esc(master.waktu||'')+(master.oleh?' oleh '+esc(master.oleh):'')+'. <a href="#" data-baru>Pakai data terbaru dari register</a> · <a href="#" data-hapus>Hapus master</a>');
     else if(master) t.push('Ada master tersimpan untuk laporan ini ('+esc(master.waktu||'')+'). <a href="#" data-buka>Buka master</a>');
     if(belumSimpan) t.push('<span style="color:var(--gold-600,#b45f04);font-weight:600">Ada koreksi yang belum disimpan sebagai master.</span>');
     info.style.display=t.length?'':'none'; info.innerHTML=t.join('<br>');
-    var a=$('[data-baru]',info); if(a) a.onclick=function(ev){ ev.preventDefault(); bodyHtml=asli; pakaiMaster=false; belumSimpan=false; draw(); tulisInfo(); };
+    var a=$('[data-baru]',info); if(a) a.onclick=function(ev){ ev.preventDefault(); bodyHtml=asli; pakaiMaster=false; lihatVersi=null; sv.value=''; belumSimpan=false; draw(); tulisInfo(); };
     a=$('[data-buka]',info); if(a) a.onclick=function(ev){ ev.preventDefault(); terapkanMaster(master); };
     a=$('[data-hapus]',info); if(a) a.onclick=function(ev){ ev.preventDefault(); konfirmasi('Hapus master?','Koreksi yang tersimpan untuk <b>'+esc(kunci)+'</b> akan dihapus. Laporan kembali memakai data terbaru dari register.','Hapus','dan').then(function(ok){ if(!ok) return; api('masterHapus',kunci).then(function(){ master=null; pakaiMaster=false; bodyHtml=asli; belumSimpan=false; draw(); tulisInfo(); toast('Master dihapus'); }).catch(gagal); }); };
   }
   bE.onclick=function(){ modeEdit=!modeEdit; bE.className=modeEdit?'btn gold':'btn'; bE.innerHTML=modeEdit?'<span class="ms">check</span>Selesai Edit':'<span class="ms">edit_note</span>Edit Isi'; draw(); tulisInfo(); };
-  bM.onclick=function(){ var b=this, h=bodyHtml.split(LAP.kop()).join('<!--KOP-->'), op={paper:paper,orient:orient,kop:kopMode}; b.disabled=true;
-    api('masterSimpan',kunci,h,op).then(function(r){ b.disabled=false; master={html:h,opsi:op,oleh:(r&&r.oleh)||'',waktu:(r&&r.waktu)||''}; pakaiMaster=true; belumSimpan=false; tulisInfo(); toast('Master tersimpan — laporan ini akan dibuka dengan koreksi Anda'); }).catch(function(e){ b.disabled=false; gagal(e); }); };
+  bM.onclick=function(){ var b=this, h=simpanBentuk(bodyHtml), op={paper:paper,orient:orient,kop:kopMode}; b.disabled=true;
+    api('masterSimpan',kunci,h,op).then(function(r){ b.disabled=false; master={html:h,opsi:op,oleh:(r&&r.oleh)||'',waktu:(r&&r.waktu)||''}; pakaiMaster=true; lihatVersi=null; belumSimpan=false; if(r&&r.daftar) isiVersi(r.daftar); tulisInfo(); toast('Master tersimpan — laporan ini akan dibuka dengan koreksi Anda'); }).catch(function(e){ b.disabled=false; gagal(e); }); };
   $('[data-pp]',wrap).onchange=function(){ paper=this.value; draw(); };
   $('[data-or]',wrap).onchange=function(){ orient=this.value; draw(); };
   var sk=$('[data-kop]',wrap); sk.value=kopMode; if(bodyHtml.indexOf(LAP.kop())<0) sk.style.display='none'; sk.onchange=function(){ kopMode=this.value; draw(); };
@@ -1686,7 +1703,8 @@ LAP.tampil = function(judul, bodyHtml, o){
   var ars=$('[data-ars]',wrap); if(ars) ars.onclick=function(){ ars.disabled=true; Promise.resolve(o.arsip.onClick()).then(function(){ ars.innerHTML='<span class="ms">check</span>Tercatat'; }).catch(function(e){ ars.disabled=false; gagal(e); }); };
   modal({ title:judul, icon:'print', size:'xl', body:wrap, foot:false });
   draw();
-  if(!o.tanpaMaster) api('masterAmbil',kunci).then(function(m){ if(!m) return; master=m; if(!belumSimpan) terapkanMaster(m); else tulisInfo(); }).catch(function(){});
+  if(!o.tanpaMaster) api('masterAmbil',kunci).then(function(m){ if(!m) return; master=m; if(!belumSimpan&&!lihatVersi) terapkanMaster(m); else tulisInfo(); }).catch(function(){});
+  if(periodik) api('riwayatSimpan',kunci,simpanBentuk(asli),{paper:paper,orient:orient,kop:kopMode}).then(function(r){ if(!r) return; isiVersi(r.daftar); if(r.baru) toast('Laporan periode ini tersimpan otomatis ke arsip versi'); }).catch(function(){});
 };
 
 /* ---------------- pusat laporan per periode ---------------- */
@@ -1723,6 +1741,7 @@ PAGES['lap-bulan']=halamanLaporan('bulan'); PAGES['lap-triwulan']=halamanLaporan
 
 LAP.buat = function(k, p){
   var f=LAP['r_'+k]; if(!f) return toast('Laporan belum tersedia',true);
+  LAP._periode=Date.now(); // pratinjau berikutnya = laporan periode → arsip versi otomatis
   f(p);
 };
 LAP.label = function(p){
@@ -1855,14 +1874,14 @@ LAP.r_rekon_aset = function(p){
         '<p class="ind">Demikian Berita Acara Rekonsiliasi dibuat dengan sebenar-benarnya, untuk dapat dipergunakan dalam rangka mendukung Laporan BMD.</p>'+
         LAP.ttd({jab:'Pihak Kedua',nama:setting('KABID_ASET_NAMA'),nip:setting('KABID_ASET_NIP')},{jab:'Pihak Pertama',nama:setting('PENGURUS_NAMA'),nip:setting('PENGURUS_NIP')})+
         '<div class="ttd"><div></div><div>Mengetahui,<br>'+kepala().jab+'<div class="nm">'+esc(kepala().nama)+'</div><div class="nip">NIP. '+esc(kepala().nip)+'</div></div><div></div></div>';
-      var hal2=LAP.lampiranSaldo(d.rows,null,'01 Januari '+per.tahun,per.akhirTeks,x.nomor,x.tanggal,'aset')+'<div class="small">Catatan Hasil Rekonsiliasi : ………………………………………………………………</div>'+
+      var hal2=LAP.lampiranSaldo(d.rows,null,per.mulaiTeks,per.akhirTeks,x.nomor,x.tanggal,'aset')+'<div class="small">Catatan Hasil Rekonsiliasi : ………………………………………………………………</div>'+
         LAP.ttd({jab:'Pihak Kedua',nama:setting('KABID_ASET_NAMA'),nip:setting('KABID_ASET_NIP')},{jab:'Pihak Pertama',nama:setting('PENGURUS_NAMA'),nip:setting('PENGURUS_NIP')});
       // lampiran mutasi menurut cara perolehan
       var map=[['1.','Cara Perolehan',null],['a.','Pengadaan dari APBD',['T|Belanja Modal']],['b.','Hibah',['T|Hibah Masuk']],['c.','Pelaksanaan dari perjanjian/kontrak',[]],['d.','Ketentuan Peraturan Perundang-undangan',[]],['e.','Putusan Pengadilan',[]],['f.','Divestasi',[]],['g.','Hasil inventarisasi',['T|Hasil Inventarisasi','K|Hasil Inventarisasi']],['h.','Hasil Tukar Menukar',[]],['i.','Pembatalan Penghapusan',[]],['j.','Perolehan Lainnya',['T|Perolehan Lainnya']],
         ['2.','Penggunaan',null],['a.','Pengalihan atau Penyerahan BMD',[]],['3.','Penerimaan Internal Pengguna Barang',['T|Transfer Masuk','T|Transfer dari KDP']],['4.','Pengeluaran Internal Pengguna Barang',['K|Transfer Keluar','K|Transfer ke Aset Lain']],['5.','Reklasifikasi',['T|Reklasifikasi Masuk','K|Reklasifikasi Keluar']],['6.','Koreksi',['T|Koreksi Kebijakan Akuntansi','T|Koreksi Pencatatan','T|Koreksi Rekon Saldo Awal','K|Koreksi Kebijakan Akuntansi','K|Koreksi Pencatatan','K|Koreksi Rekon Saldo Awal']],
         ['7.','Penghapusan',null],['a.','Pemindahtanganan BMD',['K|Hibah Keluar']],['b.','Penyerahan atau Pengalihan Status Pengguna BMD',[]],['c.','Putusan pengadilan yang telah berkekuatan hukum tetap',[]],['d.','Ketentuan Peraturan Perundang-undangan',[]],['e.','Pemusnahan',['K|Pemusnahan']],['f.','Sebab lain',['K|Penghapusan']]];
       var used={};
-      var hal3='<div class="jdl">LAMPIRAN MUTASI BMD MENURUT CARA PEROLEHAN</div><div class="sjdl">'+per.label+' (s.d. '+per.akhirTeks+')</div><table class="tb"><thead><tr><th rowspan="2">No</th><th rowspan="2">Uraian</th><th rowspan="2">Nilai Perolehan</th><th colspan="2">Hasil Rekonsiliasi</th><th colspan="2">Keterangan</th></tr><tr><th>Tambah</th><th>Kurang</th><th>Disetujui</th><th>Perbaikan</th></tr></thead><tbody>'+
+      var hal3='<div class="jdl">LAMPIRAN MUTASI BMD MENURUT CARA PEROLEHAN</div><div class="sjdl">'+per.label+' ('+per.rentang+')</div><table class="tb"><thead><tr><th rowspan="2">No</th><th rowspan="2">Uraian</th><th rowspan="2">Nilai Perolehan</th><th colspan="2">Hasil Rekonsiliasi</th><th colspan="2">Keterangan</th></tr><tr><th>Tambah</th><th>Kurang</th><th>Disetujui</th><th>Perbaikan</th></tr></thead><tbody>'+
         map.map(function(m){ if(!m[2]) return '<tr class="sub"><td class="c">'+m[0]+'</td><td colspan="6">'+m[1]+'</td></tr>'; var t=0,k=0; m[2].forEach(function(key){ used[key]=1; var o=d.kontrol[key]||{}; var s=Object.keys(o).reduce(function(a,b){return a+o[b];},0); if(key[0]==='T') t+=s; else k+=s; }); return '<tr><td class="c">'+m[0]+'</td><td>'+m[1]+'</td><td class="r">'+(t||k?rpd(t+k):'')+'</td><td class="r">'+(t?rpd(t):'')+'</td><td class="r">'+(k?rpd(k):'')+'</td><td class="c">'+(t||k?'√':'')+'</td><td></td></tr>'; }).join('')+'</tbody></table>';
       var lain=Object.keys(d.kontrol).filter(function(k){return !used[k];}); if(lain.length) hal3+='<p class="small">Kategori lain: '+lain.map(function(k){ var o=d.kontrol[k]; return esc(k.slice(2))+' '+rpd(Object.keys(o).reduce(function(a,b){return a+o[b];},0)); }).join('; ')+'</p>';
       hal3+='<div class="small">Catatan Hasil Rekonsiliasi :<br>1. ……………………………………………………………………………………<br>2. ……………………………………………………………………………………</div>'+LAP.ttd({jab:'Pihak Kedua',nama:setting('KABID_ASET_NAMA'),nip:setting('KABID_ASET_NIP')},{jab:'Pihak Pertama',nama:setting('PENGURUS_NAMA'),nip:setting('PENGURUS_NIP')});
@@ -1889,7 +1908,7 @@ LAP.r_rekon_akt = function(p){
         '<p class="ind">Demikian Berita Acara Rekonsiliasi dibuat dengan sebenar-benarnya, untuk dapat dipergunakan dalam rangka mendukung Laporan BMD dan Laporan Neraca.</p>'+
         LAP.ttd({jab:'Pihak Kedua',nama:setting('AKUNTANSI_NAMA'),nip:setting('AKUNTANSI_NIP')},{jab:'Pihak Pertama',nama:setting('PENGURUS_NAMA'),nip:setting('PENGURUS_NIP')})+
         '<div class="ttd"><div></div><div>Mengetahui,<br>'+kepala().jab+'<div class="nm">'+esc(kepala().nama)+'</div><div class="nip">NIP. '+esc(kepala().nip)+'</div></div><div></div></div>';
-      var hal2=LAP.lampiranSaldo(d.rows,null,'01 Januari '+per.tahun,per.akhirTeks,x.nomor,x.tanggal,'akt')+'<div class="small">Penjelasan terjadinya perbedaan : '+(x.penjelasan?esc(x.penjelasan):'……………………………………………………………')+'</div>'+
+      var hal2=LAP.lampiranSaldo(d.rows,null,per.mulaiTeks,per.akhirTeks,x.nomor,x.tanggal,'akt')+'<div class="small">Penjelasan terjadinya perbedaan : '+(x.penjelasan?esc(x.penjelasan):'……………………………………………………………')+'</div>'+
         LAP.ttd({jab:'Pihak Kedua',nama:setting('AKUNTANSI_NAMA'),nip:setting('AKUNTANSI_NIP')},{jab:'Pihak Pertama',nama:setting('PENGURUS_NAMA'),nip:setting('PENGURUS_NIP')});
       LAP.tampil('BA Rekon OPD vs Bidang Akuntansi — '+per.label, '<div class="page">'+hal1+'</div><div class="page">'+hal2+'</div>', {orient:'campur', data2d:[['Akun','Saldo Awal BMD','Saldo Awal Neraca','Saldo Akhir BMD','Saldo Akhir Neraca','Selisih Akhir']].concat(d.rows.map(function(r){return [r.uraian,r.awalBMD,r.awalNeraca==null?'':r.awalNeraca,r.akhirBMD,r.akhirNeraca==null?'':r.akhirNeraca,r.akhirNeraca==null?'':r.akhirBMD-r.akhirNeraca];}))});
     });
@@ -1907,12 +1926,12 @@ LAP.r_rekon_all = function(p){
       akun.concat([['LAIN','Aset Lainnya']]).forEach(function(a,i){
         var awal= a[0]==='LAIN'? 0 : num(d.saldoAwalTahun[a[0]]), akhir= a[0]==='LAIN'? 0 : num(d.saldoAkhir[a[0]]), m=d.mutasi[a[0]]||{tambah:[],kurang:[],jmlTambah:0,jmlKurang:0};
         h+='<tr><td style="width:24px"><b>'+(i+1)+'.</b></td><td colspan="3"><b>'+a[1]+'</b></td></tr>'+
-          '<tr><td></td><td>Saldo Awal Per 01 Januari '+per.tahun+'</td><td>:</td><td class="r">Rp '+rpd(awal)+'</td></tr>'+
-          '<tr><td></td><td colspan="3">a. Penambahan tahun '+per.tahun+'</td></tr>'+(m.tambah.length?m.tambah.map(function(t){return '<tr><td></td><td style="padding-left:18px">- '+esc(t.Kategori)+': '+esc(t.Uraian)+(t.NoDokumen?' ('+esc(t.NoDokumen)+')':'')+'</td><td>:</td><td class="r">'+rpd(t.Nilai)+'</td></tr>';}).join(''):'<tr><td></td><td style="padding-left:18px">-</td><td>:</td><td class="r">-</td></tr>')+
+          '<tr><td></td><td>Saldo Awal Per '+per.mulaiTeks+'</td><td>:</td><td class="r">Rp '+rpd(awal)+'</td></tr>'+
+          '<tr><td></td><td colspan="3">a. Penambahan periode '+per.rentang+'</td></tr>'+(m.tambah.length?m.tambah.map(function(t){return '<tr><td></td><td style="padding-left:18px">- '+esc(t.Kategori)+': '+esc(t.Uraian)+(t.NoDokumen?' ('+esc(t.NoDokumen)+')':'')+'</td><td>:</td><td class="r">'+rpd(t.Nilai)+'</td></tr>';}).join(''):'<tr><td></td><td style="padding-left:18px">-</td><td>:</td><td class="r">-</td></tr>')+
           '<tr><td></td><td style="padding-left:18px"><i>Jumlah Penambahan</i></td><td>:</td><td class="r">'+rpd(m.jmlTambah)+'</td></tr>'+
-          '<tr><td></td><td colspan="3">b. Pengurangan tahun '+per.tahun+'</td></tr>'+(m.kurang.length?m.kurang.map(function(t){return '<tr><td></td><td style="padding-left:18px">- '+esc(t.Kategori)+': '+esc(t.Uraian)+(t.NoDokumen?' ('+esc(t.NoDokumen)+')':'')+'</td><td>:</td><td class="r">'+rpd(t.Nilai)+'</td></tr>';}).join(''):'<tr><td></td><td style="padding-left:18px">-</td><td>:</td><td class="r">-</td></tr>')+
+          '<tr><td></td><td colspan="3">b. Pengurangan periode '+per.rentang+'</td></tr>'+(m.kurang.length?m.kurang.map(function(t){return '<tr><td></td><td style="padding-left:18px">- '+esc(t.Kategori)+': '+esc(t.Uraian)+(t.NoDokumen?' ('+esc(t.NoDokumen)+')':'')+'</td><td>:</td><td class="r">'+rpd(t.Nilai)+'</td></tr>';}).join(''):'<tr><td></td><td style="padding-left:18px">-</td><td>:</td><td class="r">-</td></tr>')+
           '<tr><td></td><td style="padding-left:18px"><i>Jumlah Pengurangan</i></td><td>:</td><td class="r">'+rpd(m.jmlKurang)+'</td></tr>'+
-          '<tr><td></td><td>Kenaikan/(Penurunan) TA.'+per.tahun+'</td><td>:</td><td class="r">'+rpd(m.jmlTambah-m.jmlKurang)+'</td></tr>'+
+          '<tr><td></td><td>Kenaikan/(Penurunan) '+kapital(per.label.toLowerCase())+'</td><td>:</td><td class="r">'+rpd(m.jmlTambah-m.jmlKurang)+'</td></tr>'+
           '<tr><td></td><td><b>Saldo Akhir Per '+per.akhirTeks+'</b></td><td>:</td><td class="r"><b>Rp '+rpd(akhir)+'</b></td></tr><tr><td colspan="4" style="height:8px"></td></tr>';
       });
       h+='</table><p class="ind">Demikian Berita Acara Rekonsiliasi Aset ini dibuat untuk dipergunakan sebagaimana mestinya.</p>'+LAP.ttd3();
@@ -1927,7 +1946,7 @@ LAP.r_rekon_all = function(p){
       var beda={}; Object.keys(akhirO).forEach(function(c){ beda[c]=num(naik[c])-(num(tamb[c])-num(kur[c])); });
       var k2=LAP.kop()+'<div class="jdl">'+esc(setting('NAMA_OPD'))+'</div><div class="sjdl b">MUTASI ASET DAN BELANJA MODAL TA '+per.tahun+' — '+LAP.label(p)+'</div>'+
         '<table class="tb sm"><thead><tr><th rowspan="2">Uraian</th><th colspan="7">ASET TETAP</th><th rowspan="2">Ekstra-<br>komptabel</th><th rowspan="2">TOTAL</th></tr><tr><th>Tanah</th><th>Peralatan & Mesin</th><th>Gedung & Bangunan</th><th>Jalan, Irigasi & Jaringan</th><th>Aset Tetap Lainnya</th><th>KDP</th><th>Jumlah</th></tr></thead><tbody>'+
-        '<tr class="sub"><td>Saldo Awal Per 01 Januari '+per.tahun+'</td>'+rowV(awalO)+'</tr><tr class="sub"><td>Saldo Akhir Per '+per.akhirTeks+'</td>'+rowV(akhirO)+'</tr><tr><td><b>Kenaikan/(Penurunan) (1)</b></td>'+rowV(naik)+'</tr>'+
+        '<tr class="sub"><td>Saldo Awal Per '+per.mulaiTeks+'</td>'+rowV(awalO)+'</tr><tr class="sub"><td>Saldo Akhir Per '+per.akhirTeks+'</td>'+rowV(akhirO)+'</tr><tr><td><b>Kenaikan/(Penurunan) (1)</b></td>'+rowV(naik)+'</tr>'+
         '<tr class="sub"><td colspan="10">Penambahan (a)</td></tr>'+T.map(function(t){ return '<tr><td style="padding-left:12px">'+esc(t)+'</td>'+rowV(d.kontrol['T|'+t]||{})+'</tr>'; }).join('')+'<tr class="sub"><td>Jumlah (a)</td>'+rowV(tamb)+'</tr>'+
         '<tr class="sub"><td colspan="10">Pengurangan (b)</td></tr>'+K.map(function(t){ return '<tr><td style="padding-left:12px">'+esc(t)+'</td>'+rowV(d.kontrol['K|'+t]||{})+'</tr>'; }).join('')+'<tr class="sub"><td>Jumlah (b)</td>'+rowV(kur)+'</tr>'+
         '<tr><td><b>Kenaikan/(Penurunan) (2) = (a) – (b)</b></td>'+rowV((function(){ var o={}; Object.keys(akhirO).forEach(function(c){ o[c]=num(tamb[c])-num(kur[c]); }); return o; })())+'</tr>'+
@@ -1989,13 +2008,13 @@ LAP.r_pengguna = function(p){ data('PENGGUNA_BMD').then(function(r){ LAP.rekapPe
 LAP.rekapPengguna = function(rows, p){
   var h=LAP.kop()+'<div class="jdl">REKAP DAFTAR PENGGUNA BMD '+(p?p.tahun:S.tahun)+'</div><div class="sjdl">'+esc(setting('NAMA_OPD'))+'</div><table class="tb sm"><thead><tr><th>NO</th><th>N I P</th><th>NAMA</th><th>PANGKAT / GOL. RUANG</th><th>NAMA JABATAN</th><th>MOBIL</th><th>MOTOR</th><th>LAPTOP</th><th>PC</th><th>KETERANGAN</th></tr></thead><tbody>'+
     rows.map(function(r,i){ return '<tr><td class="c">'+(i+1)+'</td><td>'+esc(nipFmt(r.NIP))+'</td><td>'+esc(r.Nama)+'</td><td>'+esc(r.Pangkat)+'</td><td>'+esc(r.Jabatan)+'</td><td class="c">'+esc(r.Mobil||'-')+'</td><td class="c">'+esc(r.Motor||'-')+'</td><td class="c">'+(r.Laptop?'√':'-')+'</td><td class="c">'+(r.PC?'√':'-')+'</td><td>'+esc(r.Keterangan||'')+'</td></tr>'; }).join('')+'</tbody></table>'+LAP.ttd(LAP.pj.insp('Mengetahui,'), LAP.pj.pengurus(LAP.tempatTgl(today())));
-  LAP.tampil('Rekap Pengguna BMD', '<div class="page">'+h+'</div>', {orient:'landscape'});
+  LAP.tampil('Rekap Pengguna BMD'+(p?' — '+kapital(LAP.label(p).toLowerCase()):''), '<div class="page">'+h+'</div>', {orient:'landscape'});
 };
 LAP.r_cover = function(p){
   var per={triwulan:['JANUARI – MARET','APRIL – JUNI','JULI – SEPTEMBER','OKTOBER – DESEMBER'][p.ke-1],semester:p.ke===1?'JANUARI – JUNI':'JULI – DESEMBER',tahun:'JANUARI – DESEMBER',bulan:BULAN[p.ke-1].toUpperCase()}[p.jenis];
   var jd={triwulan:'TRIWULAN '+ROM[p.ke-1],semester:'SEMESTER '+(p.ke===1?'I':'II'),tahun:'TAHUNAN',bulan:'BULANAN'}[p.jenis];
   var h='<div class="cover"><img src="'+LOGO.rohil+'"><div class="a">FILE</div><div class="b2">REKONSILIASI '+jd+'</div><div class="c2">'+per+' '+p.tahun+'</div><div class="d">'+esc(setting('NAMA_OPD').replace('INSPEKTORAT','INSPEKTORAT DAERAH'))+'</div></div>';
-  LAP.tampil('Cover Rekonsiliasi '+jd+' '+p.tahun, '<div class="page">'+h+'</div>');
+  LAP.tampil('Cover Rekonsiliasi '+jd+' — '+kapital(String(per).toLowerCase())+' '+p.tahun, '<div class="page">'+h+'</div>');
 };
 LAP.kir = function(lokasi, rows){
   var tot=0;
