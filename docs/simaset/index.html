@@ -1369,19 +1369,93 @@ var GRUP_SETTING=[
   ['Pengurus Barang & Keuangan',['PENGURUS_NAMA','PENGURUS_NIP','PENGURUS_PANGKAT','PENGURUS_JABATAN','KASUBBAG_NAMA','KASUBBAG_NIP','KASUBBAG_PANGKAT','BENDAHARA_NAMA','BENDAHARA_NIP']],
   ['BPKAD (Pihak Kedua Rekonsiliasi)',['KABID_ASET_NAMA','KABID_ASET_NIP','KABID_ASET_PANGKAT','KASUBBID_ASET_NAMA','KASUBBID_ASET_NIP','AKUNTANSI_NAMA','AKUNTANSI_NIP','AKUNTANSI_PANGKAT']],
   ['Pajak Kendaraan',['REK_PAJAK_JABATAN','REK_PAJAK_OPERASIONAL','PENERIMA_KUASA_NAMA','PENERIMA_KUASA_NIP','PENERIMA_KUASA_KTP','PENERIMA_KUASA_ALAMAT']]];
+/* Profil & Penandatangan (revisi 28 Nov 2026)
+   - Nama dipilih dari Data Pegawai → NIP, pangkat & jabatan terisi otomatis
+   - Hanya isian yang berubah yang dikirim (simpan cepat, sekali tulis di server)
+   - Penanda perubahan, tombol Simpan melekat di atas, Ctrl+S
+   - Peringatan isian "0" dan NIP tidak valid (bukan 18 digit / berakhiran 000) */
+var ORANG_SETTING={INSPEKTUR:1,SEKRETARIS:1,PLT_INSPEKTUR:1,PENGURUS:1,KASUBBAG:1,BENDAHARA:1,KABID_ASET:1,KASUBBID_ASET:1,AKUNTANSI:1,PENERIMA_KUASA:1};
+var LABEL_SETTING={INSPEKTUR:'Inspektur Daerah (definitif)',SEKRETARIS:'Sekretaris',PLT_INSPEKTUR:'Plt. Inspektur Daerah',PENGURUS:'Pengurus Barang Pengguna',KASUBBAG:'Kasubbag Adm. Umum & Keuangan',BENDAHARA:'Bendahara',KABID_ASET:'Kabid Pengelolaan Aset BPKAD',KASUBBID_ASET:'Kasubbid Perencanaan & Penatausahaan',AKUNTANSI:'Tenaga / Pelaksana Akuntansi',PENERIMA_KUASA:'Penerima Kuasa Pajak'};
+function nipCek(v){ var d=String(v||'').replace(/\s/g,''); if(!d) return ''; if(!/^\d+$/.test(d)) return 'NIP hanya boleh angka.'; if(d.length!==18) return 'NIP harus 18 digit (sekarang '+d.length+').'; if(/000$/.test(d)) return 'NIP tampak rusak (3 digit terakhir 000). Pilih ulang nama dari daftar pegawai atau ketik ulang.'; return ''; }
 PAGES.pengaturan = function(v){
   return data('PENGATURAN',true).then(function(rows){
     var map={}; rows.forEach(function(r){ map[r.Kunci]=r; });
-    var adm=String(S.user.role).toLowerCase()==='admin';
-    var fields=[]; GRUP_SETTING.forEach(function(g){ fields.push({t:'sec',l:g[0]}); g[1].forEach(function(k){ var fd={k:k,l:k.replace(/_/g,' ').toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase();}),h:map[k]&&map[k].Keterangan?esc(map[k].Keterangan):'',full:/ALAMAT|NAMA_OPD|PEMDA/.test(k),ro:!adm};
-      if(k==='PENANDATANGAN_AKTIF'){ fd.t='select'; fd.req=true; fd.l='Penanda tangan surat & laporan'; fd.opt=[{v:'PLT',l:'Plt. Inspektur Daerah'},{v:'INSPEKTUR',l:'Inspektur Daerah (definitif)'}]; fd.def='PLT'; fd.h='Dipakai otomatis di semua surat, BA & laporan. Dapat diganti per dokumen saat membuat surat.'; }
-      if(k==='PLT_INSPEKTUR_NAMA'){ fd.def='HUBAN NASRI'; fd.l='Nama Plt. Inspektur Daerah'; }
-      fields.push(fd); }); });
-    var d={}; rows.forEach(function(r){ d[r.Kunci]=r.Nilai; });
-    var f=buildForm(fields,d);
-    v.innerHTML='<div class="card"><div class="card-h"><h3>Profil Instansi & Penandatangan Laporan</h3><span class="sub">dipakai otomatis di semua laporan & surat</span><div class="sp"></div>'+(adm?'<button class="btn pri" id="btnS"><span class="ms">save</span>Simpan</button>':'<span class="badge warn">Hanya Admin yang dapat mengubah</span>')+'</div><div class="card-b" id="fb"></div></div>';
-    $('#fb').appendChild(f);
-    if(adm) $('#btnS').onclick=function(){ var o=f.ambil(); if(!o) return; var recs=Object.keys(o).map(function(k){ return {Kunci:k,Nilai:o[k],Keterangan:map[k]?map[k].Keterangan:''}; }); api('simpanBanyak','PENGATURAN',recs).then(function(){ recs.forEach(function(r){ S.boot.setting[r.Kunci]=r.Nilai; }); toast('Pengaturan tersimpan'); }).catch(gagal); };
+    var adm=String(S.user.role).toLowerCase()==='admin', ro=adm?'':' readonly';
+    var awal={}; rows.forEach(function(r){ awal[r.Kunci]=String(r.Nilai==null?'':r.Nilai); });
+    var peg=(S.boot.pegawai||[]).filter(function(p){ return p&&p.Nama; });
+    var pegNama={}; peg.forEach(function(p){ pegNama[String(p.Nama).trim().toLowerCase()]=p; });
+    function lbl(k){ return k.replace(/_/g,' ').toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase();}); }
+    function nilai(k){ var x=awal[k]; if(x==null||x==='') return k==='PLT_INSPEKTUR_NAMA'?'HUBAN NASRI':k==='PENANDATANGAN_AKTIF'?'PLT':''; return x; }
+    function isian(k, label, opsi){
+      opsi=opsi||{}; var x=nilai(k), nol=(x==='0'), ket=map[k]&&map[k].Keterangan?esc(map[k].Keterangan):'';
+      var inp;
+      if(k==='PENANDATANGAN_AKTIF') inp='<select class="f-in sel" data-k="'+k+'"'+(adm?'':' disabled')+'><option value="PLT"'+(x!=='INSPEKTUR'?' selected':'')+'>Plt. Inspektur Daerah</option><option value="INSPEKTUR"'+(x==='INSPEKTUR'?' selected':'')+'>Inspektur Daerah (definitif)</option></select>';
+      else inp='<input class="f-in" data-k="'+k+'" value="'+esc(nol?'':x)+'"'+(opsi.dl?' list="dlPegSet" autocomplete="off" placeholder="Ketik / pilih nama pegawai…"':'')+(/_NIP$/.test(k)?' inputmode="numeric" placeholder="18 digit"':'')+ro+'>';
+      return '<div class="'+(opsi.full?'full':'')+'"><label class="f-l">'+esc(label||lbl(k))+'</label>'+inp+
+        '<div class="f-h" data-h="'+k+'">'+(nol?'<span style="color:var(--red)">Sebelumnya berisi "0" — silakan isi.</span>':(/_NIP$/.test(k)&&nipCek(x)?'<span style="color:var(--red)">'+esc(nipCek(x))+'</span>':ket))+'</div></div>';
+    }
+    function kartuOrang(p, ks){
+      var nm=p+'_NAMA', judul=LABEL_SETTING[p]||lbl(p);
+      return '<div class="card" style="padding:14px 16px;margin:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="ms" style="color:var(--gold)">badge</span><b>'+esc(judul)+'</b></div><div class="fgrid">'+
+        ks.map(function(k){ return isian(k, k===nm?'Nama':lbl(k.slice(p.length+1)), {dl:k===nm, full:k===nm||/ALAMAT/.test(k)}); }).join('')+'</div></div>';
+    }
+    var html='<div class="card" style="position:sticky;top:0;z-index:5;margin-bottom:16px"><div class="card-h"><h3>Profil Instansi & Penandatangan</h3><span class="sub" id="stSet">dipakai otomatis di semua laporan & surat</span><div class="sp"></div>'+
+      (adm?'<button class="btn" id="btnBatal" disabled><span class="ms">undo</span>Batalkan</button><button class="btn pri" id="btnS" disabled><span class="ms">save</span>Simpan</button>':'<span class="badge warn">Hanya Admin yang dapat mengubah</span>')+'</div>'+
+      (adm?'<div style="padding:0 20px 12px;font-size:12.5px" class="muted"><span class="ms" style="font-size:16px;vertical-align:-3px;color:var(--gold)">lightbulb</span> Ketik nama lalu pilih dari daftar — NIP, pangkat & jabatan terisi otomatis dari <b>Data Pegawai</b>. Simpan cepat: <b>Ctrl + S</b>.</div>':'')+'</div>'+
+      '<datalist id="dlPegSet">'+peg.map(function(p){ return '<option value="'+esc(p.Nama)+'">'+esc((p.Pangkat||'')+(p.Jabatan?' — '+p.Jabatan:''))+'</option>'; }).join('')+'</datalist>';
+    GRUP_SETTING.forEach(function(g){
+      var orang=[], lain=[], urut=[];
+      g[1].forEach(function(k){ var m=k.match(/^(.*)_(NAMA|NIP|PANGKAT|JABATAN|KTP|ALAMAT)$/); if(m&&ORANG_SETTING[m[1]]){ if(orang.indexOf(m[1])<0){ orang.push(m[1]); urut.push({p:m[1]}); } } else { lain.push(k); urut.push({k:k}); } });
+      html+='<div class="card" style="margin-bottom:16px"><div class="card-h"><h3 style="font-size:15px">'+esc(g[0])+'</h3></div><div class="card-b">';
+      if(lain.length) html+='<div class="fgrid" style="margin-bottom:'+(orang.length?'14px':'0')+'">'+lain.map(function(k){ return isian(k, k==='PENANDATANGAN_AKTIF'?'Penanda tangan surat & laporan':null, {full:/ALAMAT|NAMA_OPD|PEMDA/.test(k)}); }).join('')+'</div>';
+      if(orang.length) html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">'+orang.map(function(p){ return kartuOrang(p, g[1].filter(function(k){ return k.slice(0,k.lastIndexOf('_'))===p; })); }).join('')+'</div>';
+      html+='</div></div>';
+    });
+    v.innerHTML=html;
+    if(!adm) return;
+
+    var btnS=$('#btnS'), btnB=$('#btnBatal'), st=$('#stSet');
+    function el(k){ return $('[data-k="'+k+'"]',v); }
+    function sekarang(k){ var e=el(k); var x=e?String(e.value).trim():''; if(/_NIP$/.test(k)) x=x.replace(/\s/g,''); return x; }
+    function dasar(k){ var a=nilai(k); return a==='0'?'':(/_NIP$/.test(k)?a.replace(/\s/g,''):a.trim()); } // nilai yang tampil saat halaman dibuka
+    function berubah(){ return $$('[data-k]',v).map(function(e){ return e.dataset.k; }).filter(function(k){ return sekarang(k)!==dasar(k); }); }
+    function segarkan(){
+      var b=berubah();
+      $$('[data-k]',v).forEach(function(e){ var on=b.indexOf(e.dataset.k)>=0; e.style.borderColor=on?'var(--gold)':''; e.style.background=on?'var(--gold-50)':''; });
+      btnS.disabled=!b.length; btnB.disabled=!b.length;
+      btnS.innerHTML='<span class="ms">save</span>'+(b.length?'Simpan '+b.length+' perubahan':'Simpan');
+      st.innerHTML=b.length?'<span style="color:var(--gold-600);font-weight:600">'+b.length+' isian belum disimpan</span>':'dipakai otomatis di semua laporan & surat';
+    }
+    function cekNip(k){ var h=$('[data-h="'+k+'"]',v); if(!h) return; var m=nipCek(sekarang(k)); h.innerHTML=m?'<span style="color:var(--red)">'+esc(m)+'</span>':(map[k]&&map[k].Keterangan?esc(map[k].Keterangan):''); }
+    $$('[data-k]',v).forEach(function(e){
+      var k=e.dataset.k;
+      e.addEventListener('input', function(){
+        if(/_NAMA$/.test(k)){
+          var p=pegNama[String(e.value).trim().toLowerCase()], pre=k.slice(0,-5);
+          if(p){ [['_NIP',String(p.NIP||'').replace(/\s/g,'')],['_PANGKAT',p.Pangkat],['_JABATAN',p.Jabatan]].forEach(function(z){ var t=el(pre+z[0]); if(t&&z[1]) { t.value=z[1]; if(z[0]==='_NIP') cekNip(pre+'_NIP'); } }); e.value=p.Nama; }
+        }
+        if(/_NIP$/.test(k)) cekNip(k);
+        segarkan();
+      });
+      e.addEventListener('change', segarkan);
+    });
+    btnB.onclick=function(){ go('pengaturan'); };
+    function simpan(){
+      var b=berubah(); if(!b.length){ toast('Tidak ada perubahan'); return; }
+      var salah=b.filter(function(k){ return /_NIP$/.test(k) && nipCek(sekarang(k)) && !/000$/.test(sekarang(k)); });
+      if(salah.length){ toast('Periksa NIP: '+salah.map(lbl).join(', '),true); el(salah[0]).focus(); return; }
+      var recs=b.map(function(k){ return {Kunci:k,Nilai:sekarang(k),Keterangan:map[k]?map[k].Keterangan:''}; });
+      btnS.disabled=true; btnS.innerHTML='<span class="ms">hourglass_top</span>Menyimpan…';
+      api('simpanBanyak','PENGATURAN',recs).then(function(){
+        recs.forEach(function(r){ S.boot.setting[r.Kunci]=r.Nilai; awal[r.Kunci]=r.Nilai; if(!map[r.Kunci]) map[r.Kunci]={Kunci:r.Kunci}; map[r.Kunci].Nilai=r.Nilai; });
+        if(typeof bust==='function') bust('PENGATURAN');
+        toast(recs.length+' isian tersimpan'); segarkan();
+      }).catch(function(e){ segarkan(); gagal(e); });
+    }
+    btnS.onclick=simpan;
+    function ctrlS(e){ if(!document.body.contains(v)||!$('#btnS')){ document.removeEventListener('keydown',ctrlS); return; } if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==='s'){ e.preventDefault(); simpan(); } }
+    document.addEventListener('keydown',ctrlS);
+    segarkan();
   });
 };
 
