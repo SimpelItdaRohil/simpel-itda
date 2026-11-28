@@ -2360,12 +2360,12 @@ function halAbsen() {
     '<label class="cek"><input type="checkbox" id="abNon" checked><span>Sertakan pegawai tanpa golongan di data induk</span></label>' +
     '<label class="cek"><input type="checkbox" id="abKop" checked><span>Tampilkan kop surat</span></label>' +
     '<label class="fld" style="margin-top:12px"><span>Yang dicetak</span><select id="abCakup"><option value="semua">ASN + Non ASN</option><option value="asn">ASN saja</option><option value="non">Non ASN saja</option></select></label>' +
-    '<button class="btn teks hidden" id="abKelolaNon" style="margin:-6px 0 10px"><span class="ms">group_add</span>Kelola daftar Non ASN</button>' +
+    '<button class="btn teks" id="abKelolaAsn" style="margin:-6px 0 6px"><span class="ms">manage_accounts</span>Kelola daftar ASN</button>' +
+    '<button class="btn teks hidden" id="abKelolaNon" style="margin:0 0 10px"><span class="ms">group_add</span>Kelola daftar Non ASN</button>' +
     '<label class="fld"><span>Pimpinan (baris teratas)</span><select id="abPim"><option value="">memuat…</option></select></label>' +
     '<label class="fld"><span>Jabatan penandatangan</span><input id="abTtdJab" placeholder="Plt. INSPEKTUR,"></label>' +
     '<label class="fld"><span>Ukuran kertas</span><select id="abKertas"><option value="F4">F4 (215 × 330 mm)</option><option value="A4">A4 (210 × 297 mm)</option></select></label>' +
     '<div class="fld"><span>Unit yang dicetak</span><div id="abUnit" class="abs-unit muted kecil">memuat…</div></div>' +
-    '<button class="btn teks" id="abPindah" style="margin:-6px 0 10px"><span class="ms">swap_horiz</span>Pindahkan / geser ASN antarkelompok</button>' +
     '<div class="tombol" style="justify-content:stretch"><button class="btn" id="abSegar"><span class="ms">refresh</span>Perbarui</button><button class="btn pri" id="abCetak"><span class="ms">print</span>Cetak</button></div>' +
     '<p class="muted kecil" id="abInfo"></p><p class="kecil abs-catatan"><span class="ms">edit_note</span><span>Klik teks di pratinjau untuk <b>mengedit langsung</b> (nama, keterangan, tanda ✓, tanggal, dll.). Tombol Cetak memakai hasil edit. Edit hilang bila pengaturan di atas diubah atau klik Perbarui.</span></p></div>' +
     '<div class="abs-pratinjau"><iframe id="abFrame" title="Pratinjau absen"></iframe></div></div>';
@@ -2379,7 +2379,7 @@ function halAbsen() {
   ['abJudulLain', 'abTtdJab'].forEach(function (k) { $('#' + k).oninput = absGambar; });
   ['abKop', 'abKertas', 'abCakup'].forEach(function (k) { $('#' + k).onchange = absGambar; });
   $('#abKelolaNon').onclick = dialogNonAsn;
-  $('#abPindah').onclick = dialogPindahAbsen;
+  $('#abKelolaAsn').onclick = dialogKelolaAsn;
   $('#abSegar').onclick = absMuat;
   $('#abCetak').onclick = absCetak;
   absMuat(o.pimpinan);
@@ -2402,6 +2402,7 @@ function absMuat(pimAwal) {
     $('#abUnit').innerHTML = d.grup.map(function (g) { return '<label class="cek"><input type="checkbox" data-abu="' + esc(g.nama) + '"' + (mati.indexOf(g.nama) >= 0 ? '' : ' checked') + '><span>' + esc(g.nama) + ' <span class="muted">(' + g.isi.length + ')</span></span></label>'; }).join('') || 'Tidak ada data.';
     $$('[data-abu]').forEach(function (c) { c.onchange = absGambar; });
     $('#abKelolaNon').classList.toggle('hidden', !d.bolehUbah);
+    $('#abKelolaAsn').innerHTML = '<span class="ms">manage_accounts</span>Kelola daftar ASN (' + d.grup.reduce(function (a, g) { return a + g.isi.length; }, 0) + (d.tersembunyi && d.tersembunyi.length ? ' · ' + d.tersembunyi.length + ' tidak dicetak' : '') + ')';
     $('#abKelolaNon').innerHTML = '<span class="ms">group_add</span>Kelola daftar Non ASN (' + d.nonAsn.filter(function (x) { return x.aktif; }).length + ')';
     absGambar();
   }).catch(function (e) { $('#abInfo').textContent = e.message; gagal(e); });
@@ -2475,58 +2476,81 @@ function absDokumen(d, o, cetak) {
   return h;
 }
 
-/** Pindah / geser ASN ke kelompok lain khusus lembar absen (revisi 28 Nov 2026).
-    Unit Kerja di data induk tidak berubah; penempatan disimpan di server untuk semua pengguna. */
-function dialogPindahAbsen() {
+/** KELOLA DAFTAR ASN (revisi 28 Nov 2026): ikut dicetak / tidak, pindah kelompok (mis. Irban I → Irban II),
+    dan geser urutan di dalam kelompok. Hanya untuk lembar absen; Unit Kerja di data induk tidak berubah.
+    Disimpan di server sehingga berlaku untuk semua pengguna. */
+function dialogKelolaAsn() {
   if (!ABS.d) return;
-  var d = ABS.d, unit = (d.unitSemua || d.unitDaftar || []).slice(), peta = {}, baris = [];
-  d.grup.forEach(function (g) {
-    if (unit.indexOf(g.nama) < 0) unit.push(g.nama);
-    g.isi.forEach(function (x) { baris.push({ x: x, grup: g.nama }); if (x.dipindah) peta[x.nip] = g.nama; });
-  });
-  var asli = function (x) { return x.unitAsli || 'Unit kerja belum diisi'; };
+  var d = ABS.d, unit = (d.unitSemua || d.unitDaftar || []).slice(), L = [], urutKhusus = !!d.urutManual;
+  var tambahUnit = function (u) { if (u && unit.indexOf(u) < 0) unit.push(u); };
+  d.grup.forEach(function (g) { tambahUnit(g.nama); g.isi.forEach(function (x) { L.push({ x: x, grup: g.nama, asli: x.unitAsli || 'Unit kerja belum diisi', cetak: true }); }); });
+  (d.tersembunyi || []).forEach(function (x) { var g = x.unitAbsen || x.unitAsli || 'Unit kerja belum diisi'; tambahUnit(g); L.push({ x: x, grup: g, asli: x.unitAsli || 'Unit kerja belum diisi', cetak: false }); });
+  var cari = '';
   var opsi = function (pilih) { return unit.map(function (u) { return '<option value="' + esc(u) + '"' + (u === pilih ? ' selected' : '') + '>' + esc(u) + '</option>'; }).join(''); };
-  var jumlah = function () { var n = Object.keys(peta).length; $('#apJml').textContent = n ? n + ' ASN ditempatkan di luar unit kerja aslinya' : 'Semua ASN berada di unit kerja aslinya'; };
-  var tandai = function (nip) {
-    var tr = $('#apTb tr[data-ap="' + nip + '"]'); if (!tr) return;
-    tr.style.background = peta[nip] ? '#FFF7E0' : '';
-    tr.querySelector('[data-apr]').classList.toggle('hidden', !peta[nip]);
+  var cariBaris = function (nip) { for (var i = 0; i < L.length; i++) if (L[i].x.nip === nip) return i; return -1; };
+  var tetangga = function (i, arah) { for (var k = i + arah; k >= 0 && k < L.length; k += arah) if (L[k].grup === L[i].grup) return k; return -1; };
+  var ringkas = function () {
+    var p = L.filter(function (r) { return r.grup !== r.asli; }).length, t = L.filter(function (r) { return !r.cetak; }).length;
+    $('#kaJml').innerHTML = '<b>' + (L.length - t) + '</b> ASN dicetak' + (t ? ' · <b>' + t + '</b> tidak dicetak' : '') + (p ? ' · <b>' + p + '</b> dipindah kelompok' : '') + ' · urutan <b>' + (urutKhusus ? 'manual' : 'otomatis (jabatan → golongan)') + '</b>';
   };
-  var tb = '', grupLalu = '', no = 0;
-  baris.forEach(function (b) {
-    if (b.grup !== grupLalu) { grupLalu = b.grup; no = 0; tb += '<tr class="ap-grup"><td colspan="4" style="background:#EEF3F2;font-weight:700">' + esc(b.grup) + '</td></tr>'; }
-    var x = b.x;
-    tb += '<tr data-ap="' + esc(x.nip) + '" data-q="' + esc((x.nama + ' ' + x.nip + ' ' + x.jabatan).toLowerCase()) + '"><td class="angka">' + (++no) + '</td>' +
-      '<td><b>' + esc(x.nama) + '</b><div class="kecil muted">' + esc(x.jabatan || '') + '</div><div class="kecil muted">Unit asli: ' + esc(asli(x)) + '</div></td>' +
-      '<td><select class="inp" data-aps="' + esc(x.nip) + '" data-asli="' + esc(asli(x)) + '">' + opsi(b.grup) + '</select></td>' +
-      '<td><button class="ic-btn' + (x.dipindah ? '' : ' hidden') + '" data-apr="' + esc(x.nip) + '" title="Kembalikan ke unit asli"><span class="ms">undo</span></button></td></tr>';
-  });
-  modal('<h3>Pindahkan / geser ASN di lembar absen</h3>' +
-    '<p class="muted kecil">Pilih kelompok tujuan pada kolom <b>Tempatkan di</b> (mis. dari Irban I ke Irban II). Perubahan ini <b>hanya untuk lembar absen</b>; Unit Kerja di profil/data induk ASN tidak berubah. Penempatan disimpan dan berlaku untuk semua pengguna.</p>' +
-    '<input class="inp" id="apCari" placeholder="Cari nama / NIP / jabatan…" style="margin-bottom:8px">' +
-    '<div class="tbl-wadah" style="max-height:52vh"><table class="tbl"><thead><tr><th>No</th><th>Nama / Jabatan</th><th>Tempatkan di</th><th></th></tr></thead><tbody id="apTb">' +
-    (tb || '<tr><td colspan="4" class="kosong">Tidak ada data.</td></tr>') + '</tbody></table></div>' +
-    '<p class="kecil" id="apJml" style="margin:8px 0 0"></p>' +
-    '<div class="tombol"><button class="btn" id="apReset"><span class="ms">restart_alt</span>Kembalikan semua</button><span class="sp"></span><button class="btn" onclick="tutupModal()">Batal</button><button class="btn pri" id="apSimpan">Simpan</button></div>', true);
-  $$('[data-aps]').forEach(function (e) {
-    tandai(e.dataset.aps);
-    e.onchange = function () { if (e.value === e.dataset.asli) delete peta[e.dataset.aps]; else peta[e.dataset.aps] = e.value; tandai(e.dataset.aps); jumlah(); };
-  });
-  $$('[data-apr]').forEach(function (b) {
-    b.onclick = function () { var e = $('[data-aps="' + b.dataset.apr + '"]'); e.value = e.dataset.asli; delete peta[b.dataset.apr]; tandai(b.dataset.apr); jumlah(); };
-  });
-  $('#apCari').oninput = function () {
-    var q = this.value.trim().toLowerCase();
-    $$('#apTb tr[data-ap]').forEach(function (tr) { tr.style.display = !q || tr.dataset.q.indexOf(q) >= 0 ? '' : 'none'; });
-    $$('#apTb tr.ap-grup').forEach(function (tr) { tr.style.display = q ? 'none' : ''; });
+  var gambar = function () {
+    var h = '';
+    unit.forEach(function (u) {
+      var isi = L.map(function (r, i) { return { r: r, i: i }; }).filter(function (o) { return o.r.grup === u; });
+      if (!isi.length) return;
+      var tampil = isi.filter(function (o) { return !cari || (o.r.x.nama + ' ' + o.r.x.nip + ' ' + o.r.x.jabatan).toLowerCase().indexOf(cari) >= 0; });
+      if (!tampil.length) return;
+      h += '<tr><td colspan="5" style="background:#EEF3F2;font-weight:700">' + esc(u) + ' <span class="muted">(' + isi.filter(function (o) { return o.r.cetak; }).length + ')</span></td></tr>';
+      var no = 0;
+      tampil.forEach(function (o) {
+        var r = o.r, x = r.x, pos = isi.indexOf(o);
+        if (r.cetak) no++;
+        h += '<tr' + (r.cetak ? (r.grup !== r.asli ? ' style="background:#FFF7E0"' : '') : ' class="muted" style="opacity:.6"') + '>' +
+          '<td class="angka">' + (r.cetak ? no : '–') + '</td>' +
+          '<td><b>' + esc(x.nama) + '</b><div class="kecil muted">' + esc(x.jabatan || '') + '</div>' + (r.grup !== r.asli ? '<div class="kecil" style="color:#B45309">Unit asli: ' + esc(r.asli) + '</div>' : '') + '</td>' +
+          '<td><select class="inp" data-kau="' + esc(x.nip) + '">' + opsi(r.grup) + '</select></td>' +
+          '<td style="text-align:center"><input type="checkbox" data-kac="' + esc(x.nip) + '"' + (r.cetak ? ' checked' : '') + ' title="Ikut dicetak"></td>' +
+          '<td style="white-space:nowrap"><button class="ic-btn" data-kan="' + esc(x.nip) + '"' + (pos > 0 && !cari ? '' : ' disabled') + ' title="Geser ke atas"><span class="ms">arrow_upward</span></button>' +
+          '<button class="ic-btn" data-kat="' + esc(x.nip) + '"' + (pos < isi.length - 1 && !cari ? '' : ' disabled') + ' title="Geser ke bawah"><span class="ms">arrow_downward</span></button>' +
+          (r.grup !== r.asli ? '<button class="ic-btn" data-kar="' + esc(x.nip) + '" title="Kembalikan ke unit asli"><span class="ms">undo</span></button>' : '') + '</td></tr>';
+      });
+    });
+    $('#kaTb').innerHTML = h || '<tr><td colspan="5" class="kosong">Tidak ada data.</td></tr>';
+    $$('[data-kau]').forEach(function (e) { e.onchange = function () { var i = cariBaris(e.dataset.kau), r = L.splice(i, 1)[0]; r.grup = e.value; L.push(r); gambar(); }; });
+    $$('[data-kac]').forEach(function (e) { e.onchange = function () { L[cariBaris(e.dataset.kac)].cetak = e.checked; gambar(); }; });
+    $$('[data-kan],[data-kat]').forEach(function (b) {
+      b.onclick = function () {
+        var i = cariBaris(b.dataset.kan || b.dataset.kat), k = tetangga(i, b.dataset.kan ? -1 : 1);
+        if (k < 0) return; var t = L[i]; L[i] = L[k]; L[k] = t; urutKhusus = true; gambar();
+      };
+    });
+    $$('[data-kar]').forEach(function (b) { b.onclick = function () { var i = cariBaris(b.dataset.kar), r = L.splice(i, 1)[0]; r.grup = r.asli; L.push(r); gambar(); }; });
+    ringkas();
   };
-  $('#apReset').onclick = function () {
-    $$('[data-aps]').forEach(function (e) { e.value = e.dataset.asli; delete peta[e.dataset.aps]; tandai(e.dataset.aps); }); jumlah();
+  modal('<h3>Kelola daftar ASN</h3><p class="muted kecil">Atur ASN yang tercetak di lembar absen: <b>pindahkan</b> ke kelompok lain lewat kolom <b>Tempatkan di</b> (mis. dari Irban I ke Irban II), ' +
+    '<b>geser urutan</b> dengan tombol ↑ ↓, dan hilangkan centang <b>Cetak</b> bila tidak ikut absen. Perubahan ini hanya untuk lembar absen; Unit Kerja di profil ASN tidak berubah. Berlaku untuk semua pengguna.</p>' +
+    '<input class="inp" id="kaCari" placeholder="Cari nama / NIP / jabatan… (tombol geser nonaktif selama mencari)" style="margin-bottom:8px">' +
+    '<div class="tbl-wadah" style="max-height:52vh"><table class="tbl"><thead><tr><th>No</th><th>Nama / Jabatan</th><th>Tempatkan di</th><th>Cetak</th><th>Urutan</th></tr></thead><tbody id="kaTb"></tbody></table></div>' +
+    '<p class="kecil" id="kaJml" style="margin:8px 0 0"></p>' +
+    '<div class="tombol"><button class="btn" id="kaOto" title="Urutkan kembali menurut jabatan dan golongan"><span class="ms">sort</span>Urutan otomatis</button>' +
+    '<button class="btn" id="kaReset"><span class="ms">restart_alt</span>Kembalikan semua</button><span class="sp"></span>' +
+    '<button class="btn" onclick="tutupModal()">Batal</button><button class="btn pri" id="kaSimpan">Simpan</button></div>', true);
+  $('#kaCari').oninput = function () { cari = this.value.trim().toLowerCase(); gambar(); };
+  $('#kaOto').onclick = function () { urutKhusus = false; ringkas(); toast('Urutan otomatis dipakai setelah disimpan.'); };
+  $('#kaReset').onclick = function () {
+    if (!confirm('Kembalikan semua ASN ke unit kerja asli, ikut dicetak, dan urutan otomatis?')) return;
+    L.forEach(function (r) { r.grup = r.asli; r.cetak = true; }); urutKhusus = false; gambar();
   };
-  $('#apSimpan').onclick = function () {
-    jalan(apiT('absenPindahSimpan', peta), 'Menyimpan penempatan…').then(function (r) { tutupModal(); toast(r.pesan); absMuat(); }).catch(gagal);
+  $('#kaSimpan').onclick = function () {
+    var a = { pindah: {}, sembunyi: [], urut: {} }, n = {};
+    L.forEach(function (r) {
+      if (r.grup !== r.asli) a.pindah[r.x.nip] = r.grup;
+      if (!r.cetak) a.sembunyi.push(r.x.nip);
+      if (urutKhusus) { n[r.grup] = (n[r.grup] || 0) + 1; a.urut[r.x.nip] = n[r.grup]; }
+    });
+    jalan(apiT('absenAturSimpan', a), 'Menyimpan…').then(function (h) { tutupModal(); toast(h.pesan); absMuat(); }).catch(gagal);
   };
-  jumlah();
+  gambar();
 }
 
 /** Kelola daftar Non ASN: nama, tugas, aktif, urutan. */
