@@ -1547,8 +1547,8 @@ var LAP = {};
    dapat ditimpa per dokumen lewat LAP._ttd ('INSPEKTUR' | 'PLT'). */
 function kepala(mode){
   mode = mode || LAP._ttd || setting('PENANDATANGAN_AKTIF','PLT');
-  if(/PLT/i.test(mode)) return { plt:true, nama:setting('PLT_INSPEKTUR_NAMA','HUBAN NASRI'), nip:setting('PLT_INSPEKTUR_NIP'), pangkat:setting('PLT_INSPEKTUR_PANGKAT'), jab:'Plt. Inspektur Daerah', jabK:'Plt. Inspektur Daerah' };
-  return { plt:false, nama:setting('INSPEKTUR_NAMA'), nip:setting('INSPEKTUR_NIP'), pangkat:setting('INSPEKTUR_PANGKAT'), jab:'Inspektur Daerah', jabK:'Inspektur Daerah' };
+  if(/PLT/i.test(mode)) return { plt:true, nama:setting('PLT_INSPEKTUR_NAMA','HUBAN NASRI'), nip:setting('PLT_INSPEKTUR_NIP'), pangkat:setting('PLT_INSPEKTUR_PANGKAT'), jab:'PLT. INSPEKTUR DAERAH', jabK:'Plt. Inspektur Daerah' };
+  return { plt:false, nama:setting('INSPEKTUR_NAMA'), nip:setting('INSPEKTUR_NIP'), pangkat:setting('INSPEKTUR_PANGKAT'), jab:'INSPEKTUR DAERAH', jabK:'Inspektur Daerah' };
 }
 
 /* ---------------- kerangka dokumen ---------------- */
@@ -1569,7 +1569,7 @@ LAP.css = function(paper, orient, mode){ /* mode='file' = Word/PDF Drive (margin
   'table.tb{width:100%;border-collapse:collapse;margin:6px 0 10px}.tb th,.tb td{border:1px solid #000;padding:3px 5px;font-size:10pt;vertical-align:top}.tb th{background:#e9eee9;text-align:center;font-weight:bold}.tb td.r{text-align:right;white-space:nowrap}.tb td.c{text-align:center}.tb tr.sub td{font-weight:bold;background:#f3f5f3}.tb tr.tot td{font-weight:bold;background:#e9eee9}.tb .nb{border:0}'+
   '.tb.sm th,.tb.sm td{font-size:8.5pt;padding:2px 3px}'+
   'table.id{border-collapse:collapse;margin:4px 0 8px}table.id td{padding:1px 6px 1px 0;vertical-align:top}'+
-  '.ttd{display:flex;justify-content:space-between;gap:30px;margin-top:22px;page-break-inside:avoid}.ttd>div{flex:1;text-align:center}.ttd .nm{margin-top:70px;font-weight:bold;text-decoration:underline}.ttd .nip{font-size:11pt}'+
+  '.ttd{display:flex;justify-content:space-between;gap:30px;margin-top:22px;page-break-inside:avoid}.ttd>div{flex:1;text-align:center}.ttd .nm{margin-top:70px;font-weight:bold;text-decoration:underline;white-space:nowrap}.ttd .nip{font-size:11pt}'+
   'p{margin:6px 0;text-align:justify}.ind{text-indent:36px}.small{font-size:10pt}.b{font-weight:bold}.u{text-decoration:underline}.c{text-align:center}.r{text-align:right}'+
   'ol,ul{margin:4px 0 4px 18px;padding-left:12px}li{margin:2px 0;text-align:justify}'+
   '.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:250mm}.cover img{width:150px;height:150px;object-fit:contain;margin-bottom:40px}.cover .a{font-size:40pt;font-weight:bold;letter-spacing:6px}.cover .b2{font-size:24pt;font-weight:bold;margin-top:22px}.cover .c2{font-size:18pt;font-weight:bold;margin-top:10px}.cover .d{font-size:16pt;font-weight:bold;margin-top:60px;border-top:3px double #000;padding-top:14px}'+
@@ -1956,8 +1956,8 @@ LAP.r_rekon_all = function(p){
   }).catch(gagal);
 };
 LAP.ttd3 = function(){
-  function c(i,n,j){ return '<tr><td style="width:18px">'+i+'.</td><td><b>'+esc(n||'………………………')+'</b><br><span class="small">'+j+'</span></td><td style="width:120px">(………………………)</td></tr>'; }
-  return '<div class="ttd" style="font-size:11pt"><div style="text-align:left"><div class="b c">'+esc(setting('NAMA_OPD'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,kepala().nama,kepala().jab+' Kab. '+esc(setting('KABUPATEN')))+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBAG_NAMA'),'KASUBBAG. KEUANGAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('PENGURUS_NAMA'),'PENGURUS BARANG PENGGUNA')+'</table></div>'+
+  function c(i,n,j){ return '<tr><td style="width:18px">'+i+'.</td><td><b style="white-space:nowrap">'+esc(n||'………………………')+'</b><br><span class="small">'+j+'</span></td><td style="width:120px">(………………………)</td></tr>'; }
+  return '<div class="ttd" style="font-size:11pt"><div style="text-align:left"><div class="b c">'+esc(setting('NAMA_OPD'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,kepala().nama,kepala().jab+' KAB. '+esc(String(setting('KABUPATEN')).toUpperCase()))+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBAG_NAMA'),'KASUBBAG. KEUANGAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('PENGURUS_NAMA'),'PENGURUS BARANG PENGGUNA')+'</table></div>'+
     '<div style="text-align:left"><div class="b c">BIDANG PENGELOLAAN ASET DAERAH BPKAD KAB. '+esc(setting('KABUPATEN'))+'</div><table class="id" style="width:100%;margin-top:10px">'+c(1,setting('KABID_ASET_NAMA'),'KEPALA BIDANG PENGELOLAAN ASET')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(2,setting('KASUBBID_ASET_NAMA'),'KASUBBID PERENCANAAN DAN PENATAUSAHAAN')+'<tr><td colspan="3" style="height:16px"></td></tr>'+c(3,setting('AKUNTANSI_NAMA'),'TENAGA AKUNTANSI')+'</table></div></div>';
 };
 
@@ -2297,7 +2297,7 @@ var KK_DEF = {
     dasar:'Arsip BA Rekonsiliasi yang telah ditandatangani para pihak (OPD vs Bidang Aset BPKAD, OPD vs Akuntansi, rekonsiliasi keseluruhan, stock opname) per triwulan, semester dan tahunan.',
     src:[],
     fields:[{k:'d_JenisRekon',l:'Jenis rekonsiliasi',t:'select',req:true,full:true,opt:['BA Rekon OPD vs Bidang Pengelolaan Aset','BA Rekon OPD vs Bidang Akuntansi','BA Rekonsiliasi Aset Keseluruhan','BA Stock Opname Persediaan','Laporan Barang Pengguna (LBP)']},
-      {k:'d_Periode',l:'Periode',t:'select',req:true,opt:TW},{k:'Tahun',l:'Tahun',def:String(new Date().getFullYear()),req:true},{k:'Tanggal',l:'Tanggal BA',t:'date',req:true,def:today()},{k:'Nomor',l:'Nomor BA'},
+      {k:'d_Periode',l:'Periode',t:'select',req:true,opt:TW.concat(BULAN.map(function(b){return 'Bulan '+b;}))},{k:'Tahun',l:'Tahun',def:String(new Date().getFullYear()),req:true},{k:'Tanggal',l:'Tanggal BA',t:'date',req:true,def:today()},{k:'Nomor',l:'Nomor BA'},
       {k:'Nilai',l:'Saldo akhir menurut Laporan BMD (Rp)',t:'number'},{k:'d_NilaiPembanding',l:'Saldo akhir menurut BPKAD / Neraca (Rp)',t:'number',h:'Selisih dihitung otomatis.'},
       {k:'Status',l:'Hasil',t:'select',opt:['Sesuai (tidak ada selisih)','Ada selisih — sudah dijelaskan','Ada selisih — belum dijelaskan'],def:'Sesuai (tidak ada selisih)'},{k:'Keterangan',l:'Penjelasan selisih / catatan',t:'textarea'}],
     slots:[{slot:'PDF',l:'PDF BA Rekonsiliasi bertanda tangan',req:true},{slot:'LAMPIRAN',l:'Lampiran rekonsiliasi',multi:true}],
@@ -4907,6 +4907,69 @@ function simpanSemua(){
 }
 })();
 </script>
+<script>
+/* =====================================================================
+   JsArsipAuto — Arsip Digital AR-02 s.d. AR-05: "Baca Otomatis (PDF)"   (revisi 28 Nov 2026)
+   PDF / foto dokumen → OCR (server, Google Drive) → form Tambah & Unggah terisi otomatis
+   + berkas langsung terpasang di slot utama → periksa → Simpan.
+   Tombol disisipkan otomatis di samping "Tambah & Unggah" (tidak mengubah JsArsip).
+   ===================================================================== */
+(function(){
+var JENIS = { REKON:'BA Rekonsiliasi', SURAT_MASUK:'surat masuk', SK_PENGURUS:'SK Pengurus Barang', PERATURAN:'peraturan' };
+
+function kunciHalaman(){ var p=String(S.page||''); return p.indexOf('kk_')===0 && JENIS[p.slice(3)] ? p.slice(3) : ''; }
+
+function sisip(){
+  var key=kunciHalaman(), add=document.getElementById('kkAdd');
+  if(!key || !add || document.getElementById('btnArsAuto')) return;
+  var b=document.createElement('button');
+  b.id='btnArsAuto'; b.type='button'; b.className='btn';
+  b.style.cssText='background:#fff;border:1.5px solid var(--em-700,#0f6b4f);color:var(--em-700,#0f6b4f);font-weight:700';
+  b.innerHTML='<span class="ms">document_scanner</span>Baca Otomatis (PDF)';
+  b.title='Pilih PDF/foto '+JENIS[key]+' — isian terisi otomatis, berkas langsung terlampir';
+  b.onclick=function(){ pilih(key); };
+  add.parentNode.insertBefore(b, add);
+}
+new MutationObserver(function(){ try{ sisip(); }catch(e){} }).observe(document.body,{childList:true,subtree:true});
+
+function pilih(key){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='application/pdf,.pdf,image/*';
+  inp.onchange=function(){ if(inp.files[0]) baca(key, inp.files[0]); };
+  inp.click();
+}
+
+function baca(key, file){
+  var d=KK_DEF[key];
+  var tunggu=modal({ title:'Membaca '+file.name, icon:'document_scanner', body:'<div style="display:flex;gap:12px;align-items:center"><span class="spin"></span><div>Dokumen sedang dibaca otomatis (OCR Google Drive)…<div class="muted" style="font-size:12.5px;margin-top:4px">Biasanya 5–20 detik, tergantung jumlah halaman.</div></div></div>', buttons:[] });
+  ARS.baca(file).then(function(b){
+    return api('arsipBaca',{ jenis:key, nama:file.name, mime:b.mime||'application/pdf', base64:b.b64 });
+  }).then(function(h){
+    if(tunggu && tunggu.close) tunggu.close();
+    var r={ Data:{} };
+    Object.keys(h.data||{}).forEach(function(k){ if(k.indexOf('d_')===0) r.Data[k.slice(2)]=h.data[k]; else r[k]=h.data[k]; });
+    KK.form(key, r, {}, []);
+    setTimeout(function(){ pasangBerkas(d, file, h); }, 60);
+  }).catch(function(e){ if(tunggu && tunggu.close) tunggu.close(); gagal(e); });
+}
+
+/* berkas dipasang di slot utama + catatan hasil baca di atas form */
+function pasangBerkas(d, file, h){
+  var slot=(d.slots.filter(function(s){ return s.req; })[0]||d.slots[0]||{}).slot;
+  var semua=document.querySelectorAll('input[type=file][data-slot="'+slot+'"]'), inp=semua[semua.length-1];
+  if(inp){ try{ var dt=new DataTransfer(); dt.items.add(file); inp.files=dt.files; var t=document.createElement('div'); t.className='f-h'; t.style.color='var(--em-700)'; t.textContent='Terlampir otomatis: '+file.name; inp.parentNode.appendChild(t); }catch(e){} }
+  var box=inp? inp.closest('.fgrid') : null, w=box? box.parentNode : null; if(!w) return;
+  var n=h.ditemukan||0, info=document.createElement('div');
+  info.style.cssText='margin-bottom:14px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.55;'+(h.galat?'background:var(--amber-100,#fef3c7);color:var(--amber,#b45309)':'background:var(--em-100,#e6f4ec);color:var(--em-700,#0f6b4f)');
+  info.innerHTML='<span class="ms" style="font-size:17px;vertical-align:-3px">document_scanner</span> '+
+    (h.galat? '<b>OCR bermasalah:</b> '+esc(h.galat)+' — isi form secara manual.' : '<b>Hasil baca otomatis:</b> '+n+' isian terisi dari dokumen. <b>Periksa kembali</b> sebelum menyimpan (OCR bisa salah baca, terutama angka & tanggal).')+
+    ' <a href="#" data-ocr>Lihat teks hasil baca</a>';
+  w.insertBefore(info, w.firstChild);
+  info.querySelector('[data-ocr]').onclick=function(ev){ ev.preventDefault();
+    modal({ title:'Teks hasil baca — '+file.name, icon:'notes', size:'lg', body:'<pre style="white-space:pre-wrap;font-size:12px;max-height:60vh;overflow:auto;margin:0">'+esc(h.teks||'(kosong)')+'</pre>', buttons:[{label:'Tutup'}] }); };
+}
+})();
+</script>
+
 <style>
 /* =====================================================================
    JsLabel — Label Barcode / QR Code Aset (logo Kab. Rokan Hilir + Inspektorat)
